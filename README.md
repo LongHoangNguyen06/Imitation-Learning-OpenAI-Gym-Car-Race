@@ -53,7 +53,9 @@ Given
 - Steering Angle $\delta$
 - Wheel base $L$
 Using bicycle assumption to compute the steering correction $\delta$ as
+
 $$\alpha = \arctan\left(\frac{y_t - y}{x_t - x}\right) - \theta$$
+
 $$\delta = \arctan\left(\frac{2L \sin(\alpha)}{L_d}\right)$$
 
 ### Stanley Lateral Controller
