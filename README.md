@@ -4,7 +4,7 @@
 - Multi-task learning CNN architecture.
 - DAgger for Behavior Cloning: Improved performance over standard behavior cloning by incorporating corrections from the expert.
 
-<p style="text-align: center;">
+<p align="center">
   <img src="static/single_task.png" alt="Single-task learning baseline" width="400"/>
 </p>
 
@@ -30,7 +30,7 @@ Gas input to the car is the error between current speed and desired speed.
 
 Cross track error and heading error between reference trajectory and car are used as controller's input. The image below show the way points (red points) and reference trajectory.
 
-<p style="text-align: center;">
+<p align="center">
   <img src="static/head_error.png" alt="Heading error" width="600"/>
 </p>
 
@@ -38,7 +38,7 @@ Cross track error and heading error between reference trajectory and car are use
 
 One of the most important aspect is cutting corner. Here I found two strategies:
 - The first one by choosing suitable reference trajectory to compute CTE and HE. By skipping intermediate way points when the road curvature is high, the corner cutting can save a little time and improve the algorithm by $\sim$ 50 points.
-<p style="text-align: center;">
+<p align="center">
   <img src="static/corner_cutting.png" alt="Heading error" width="600"/>
 </p>
 
@@ -60,7 +60,7 @@ $$\delta = \arctan\left(\frac{2L \sin(\alpha)}{L_d}\right)$$
 The Stanley controller combines cross-track error (CTE) with heading error and is a bit more robust in the theory. Since I did not spend enough time into tuning the controllers, both Pure Pursuit and Stanley Controller seems to be equal good.
 
 ### Baseline CNN Learner
-<p style="text-align: center;">
+<p align="center">
   <img src="static/single_task.png" alt="Single-task learning baseline" width="500"/>
 </p>
 
