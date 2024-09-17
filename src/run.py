@@ -3,7 +3,7 @@ from __future__ import annotations
 # isort:maintain_block
 import os
 
-from utils import env_utils
+from src.utils import env_utils
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"  # isort:skip
 # isort:end_maintain_block
@@ -65,8 +65,8 @@ def simulate(simulation_input):
         pose = get_pose(env)
         speed = get_speed(env)
         wheels_omegas = get_wheel_velocities(env)
-        steering_joint_angle = env.unwrapped.car.wheels[0].joint.angle # type: ignore
-        angular_velocity = env.unwrapped.car.hull.angularVelocity # type: ignore
+        steering_joint_angle = env.unwrapped.car.wheels[0].joint.angle  # type: ignore
+        angular_velocity = env.unwrapped.car.hull.angularVelocity  # type: ignore
         history["speed_history"].append(speed)
         history["pose_history"].append(pose)
         history["wheels_omegas_history"].append(wheels_omegas)
@@ -96,7 +96,7 @@ def simulate(simulation_input):
         history["reward_history"].append(reward)
 
         # Go to next step
-        seed_reward += reward # type: ignore
+        seed_reward += reward  # type: ignore
 
         # Check for keyboard events like Esc or Q to stop the loop
         if conf.RENDER_MODE == "human":
@@ -156,7 +156,7 @@ def run(argv):
     trial_id = get_next_trial_name(dataset_path)
 
     # Simulation
-    if args.mode in ["demo", "test", "debug"]:
+    if args.mode in ["test", "debug"]:
         rewards = []
         for seed in conf.DEMO_SEEDS:
             output, _ = simulate((seed, args, dataset_path, trial_id, seed, True))
@@ -165,7 +165,7 @@ def run(argv):
         rets = process_map(
             simulate,
             [(s, args, dataset_path, trial_id, s, False) for s in conf.DEMO_SEEDS],
-            max_workers=conf.MAX_WORKERS,
+            max_workers=conf.GYM_MAX_WORKERS,
         )
         rets_data = [ret[0] for ret in rets]
         rets_cols = rets[0][1]

@@ -1,24 +1,29 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from turtle import forward
 
 import torch
 from dynaconf import Dynaconf
 
-from src.abstract_classes.abstract_controller import AbstractController
+from src.expert_drivers.abstract_classes.abstract_controller import AbstractController
 from src.imitation_driver import network
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class ImitationDriverController(AbstractController):
-    def __init__(self, conf: Dynaconf, model=network.AbstractNet):
+    def __init__(self, conf: Dynaconf, model: network.AbstractNet = None):
         super().__init__()
         if model is None:
-            model = network.MultiTaskCNN().double().to(device)
             if conf.IMITATION_MODEL_PATH is not None:
-                model.load_state_dict(torch.load(conf.IMITATION_MODEL_PATH))
+                try:
+                    model = network.MultiTaskCNN().double().to(device)
+                    model.seq = None
+                    model.load_state_dict(torch.load(conf.IMITATION_MODEL_PATH, weights_only=True))
+                except:
+                    model = network.SingleTaskCNN().double().to(device)
+                    model.seq = None
+                    model.load_state_dict(torch.load(conf.IMITATION_MODEL_PATH, weights_only=True))
             model.share_memory()
         self.conf = conf
         self.model = model

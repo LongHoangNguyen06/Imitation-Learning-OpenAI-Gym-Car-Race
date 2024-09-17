@@ -7,12 +7,12 @@ import numpy as np
 import pygame
 from dynaconf import Dynaconf
 
-from src.abstract_classes.abstract_controller import AbstractController
-from src.human_driver.human_driver_controller import HumanDriverController
+from src.expert_drivers.abstract_classes.abstract_controller import AbstractController
+from src.expert_drivers.human_driver.human_driver_controller import HumanDriverController
 from src.imitation_driver.imitation_driver_controller import ImitationDriverController
-from src.pid_driver.pid_driver_controller import PidDriverController
-from src.pure_pursuit_driver.pure_pursuit_controller import PurePursuitController
-from src.stanley_driver.stanley_controller import StanleyController
+from src.expert_drivers.pid_driver.pid_driver_controller import PidDriverController
+from src.expert_drivers.pure_pursuit_driver.pure_pursuit_controller import PurePursuitController
+from src.expert_drivers.stanley_driver.stanley_controller import StanleyController
 
 
 def extract_track(env: gym.ENV) -> np.ndarray:  # type: ignore
@@ -41,30 +41,30 @@ def get_conf(args: argparse.Namespace, print_out=True) -> Dynaconf:
     Raises:
         ValueError: If the mode or controller is invalid.
     """
-    settings_files = ["conf/default_conf.py"]
+    settings_files = ["src/conf/default_conf.py"]
     if args.mode == "demo":
-        settings_files.append("conf/mode_conf/demo_conf.py")
+        settings_files.append("src/conf/mode_conf/demo_conf.py")
     elif args.mode == "test":
-        settings_files.append("conf/mode_conf/test_conf.py")
+        settings_files.append("src/conf/mode_conf/test_conf.py")
     elif args.mode == "benchmark":
-        settings_files.append("conf/mode_conf/benchmark_conf.py")
+        settings_files.append("src/conf/mode_conf/benchmark_conf.py")
     elif args.mode == "debug":
-        settings_files.append("conf/mode_conf/debug_conf.py")
+        settings_files.append("src/conf/mode_conf/debug_conf.py")
     else:
         raise ValueError(f"Invalid mode: {args.mode}")
 
     if args.controller == "human":
-        settings_files.append("conf/controller_conf/human_conf.py")
+        settings_files.append("src/conf/controller_conf/human_conf.py")
     elif args.controller == "constant":
-        settings_files.append("conf/controller_conf/constant_conf.py")
+        settings_files.append("src/conf/controller_conf/constant_conf.py")
     elif args.controller == "pid":
-        settings_files.append("conf/controller_conf/pid_conf.py")
+        settings_files.append("src/conf/controller_conf/pid_conf.py")
     elif args.controller == "pure_pursuit":
-        settings_files.append("conf/controller_conf/pure_pursuit_conf.py")
+        settings_files.append("src/conf/controller_conf/pure_pursuit_conf.py")
     elif args.controller == "stanley":
-        settings_files.append("conf/controller_conf/stanley_conf.py")
+        settings_files.append("src/conf/controller_conf/stanley_conf.py")
     elif args.controller == "imitation":
-        settings_files.append("conf/controller_conf/imitation_conf.py")
+        settings_files.append("src/conf/controller_conf/imitation_conf.py")
     else:
         raise ValueError(f"Invalid controller: {args.controller}")
 

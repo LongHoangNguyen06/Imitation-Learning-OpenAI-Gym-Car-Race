@@ -1,17 +1,16 @@
 from __future__ import annotations
 
 import os
+import random
 
 import numpy as np
 import torch
 from dynaconf import Dynaconf
-from pyparsing import deque
 from torch.utils.data import Dataset
-from tqdm import tqdm
 
 from src.utils.balance import discretize_and_compute_balancing_weights
 
-conf = Dynaconf(settings_files=["conf/default_conf.py"])
+conf = Dynaconf(settings_files=["src/conf/default_conf.py"])
 
 
 def convert_action_gym_to_models(action):
@@ -170,17 +169,38 @@ def preprocess_input_training(obs, speed, wheels_omegas, angular_velocity, steer
     )
 
 
-class AbstractDataset(Dataset):
-    def __init__(self) -> None:
+class SequenceDataset(Dataset):
+    def __init__(self, data_dir) -> None:
         super().__init__()
         # Initialize tensors to save memory
-        self.observation = deque(maxlen=conf.IMITATION_MAX_MEMORY)
-        self.state = deque(maxlen=conf.IMITATION_MAX_MEMORY)
-        self.action = deque(maxlen=conf.IMITATION_MAX_MEMORY)
-        self.curvature = deque(maxlen=conf.IMITATION_MAX_MEMORY)
-        self.masks = deque(maxlen=conf.IMITATION_MAX_MEMORY)
+        self.data_dir = data_dir
+        self.record_files = []
+        self._update_data_dir()
 
-    def append(self, obs, speed, wheels_omegas, angular_velocity, steering_joint_angle, action, curvature):
+    def _update_data_dir(self):
+        rfs = os.listdir(self.data_dir)
+        rfs = [file for file in rfs if file.endswith(".npz")]
+        rfs: list[str] = [os.path.join(self.data_dir, file) for file in rfs]
+        self.record_files = []
+        for record_file in rfs:
+            if os.path.islink(record_file):
+                record_file = os.readlink(record_file)
+            self.record_files.append(record_file)
+        # keep only n record_files
+        if conf.DAGGER_TRAINING:
+            self.record_files = sorted(self.record_files)  # Sort by seed
+            recent_record_files = self.record_files[
+                : -conf.DAGGER_DATASET_RECENT_MUST_INCLUDE
+            ]  # Make the most recent record files available for learning to learn from most recent errors
+            random.shuffle(self.record_files)  # Shuffle the rest to avoid catastrophic forgetting
+            self.record_files = recent_record_files + self.record_files[: conf.DAGGER_DATASET_LIMIT_PER_EPOCH]
+            self.record_files = list(set(self.record_files))  # Remove duplicates
+            # TODO: introduce a better sampling strategy to keep more uncertain record files
+
+    def __len__(self):
+        return len(self.record_files)
+
+    def _prepare(self, obs, speed, wheels_omegas, angular_velocity, steering_joint_angle, action, curvature):
         # Preprocessing
         obs, state, curvature, masks, action = preprocess_input_training(
             obs=obs,
@@ -194,23 +214,52 @@ class AbstractDataset(Dataset):
 
         # Store preprocessed data into tensor
         if conf.USE_RGB:
-            self.observation += list(obs)
+            observation = obs
         else:
-            self.observation += list(obs.mean(axis=-1, keepdims=True))
-        self.state += list(state)
-        self.curvature += list(curvature)
-        self.masks += list(masks)
-        self.action += list(action)
+            observation = obs.mean(axis=-1, keepdims=True)
+        state = state
+        curvature = curvature
+        masks = masks
+        action = action
+        return observation, state, curvature, masks, action
 
-    def recompute_weights(self):
-        action = np.array(self.action)
-        self.instance_weights = torch.from_numpy(
-            discretize_and_compute_balancing_weights(action, bins=conf.IMITATION_BALANCE_BINS).reshape(-1, 1)
-        ).float()
-        return self.instance_weights
+    def __getitem__(self, idx):
+        record_path = self.record_files[idx]
+        if os.path.islink(record_path):
+            record_path = os.readlink(record_path)
+        record = np.load(record_path)
+        return self._prepare(
+            obs=record["observation_history"][:: conf.IMITATION_DATASET_SAMPLING_RATE],
+            speed=record["speed_history"][:: conf.IMITATION_DATASET_SAMPLING_RATE],
+            wheels_omegas=record["wheels_omegas_history"][:: conf.IMITATION_DATASET_SAMPLING_RATE],
+            angular_velocity=record["angular_velocity_history"][:: conf.IMITATION_DATASET_SAMPLING_RATE],
+            steering_joint_angle=record["steering_joint_angle_history"][:: conf.IMITATION_DATASET_SAMPLING_RATE],
+            action=record["action_history"][:: conf.IMITATION_DATASET_SAMPLING_RATE],
+            curvature=record["curvature_history"][:: conf.IMITATION_DATASET_SAMPLING_RATE],
+        )
 
-    def save(self):
-        pass
+
+def sequence_collate_fn(batch):
+    observations, states, curvatures, masks, actions = zip(*batch)
+    observations = np.concatenate(observations, axis=0)
+    states = np.concatenate(states, axis=0)
+    curvatures = np.concatenate(curvatures, axis=0)
+    masks = np.concatenate(masks, axis=0)
+    actions = np.concatenate(actions, axis=0)
+    return observations, states, curvatures, masks, actions
+
+
+class StateDataset(Dataset):
+    def __init__(self, sequence_dataset_batch):
+        super().__init__()
+        (self.observation, self.state, self.curvature, self.masks, self.action) = sequence_dataset_batch
+        self.instance_weights = discretize_and_compute_balancing_weights(
+            self.action, bins=conf.IMITATION_BALANCE_BINS
+        ).reshape(
+            -1, 1
+        )  # TODO: change this to a more robust weights. Current weights could change strongly if batch is small.
+        # print(self.action)
+        # print(self.instance_weights)
 
     def __len__(self):
         return len(self.observation)
@@ -222,37 +271,8 @@ class AbstractDataset(Dataset):
         return (
             torch.tensor(obs).double(),
             torch.tensor(self.state[idx]).double(),
-            torch.tensor(self.action[idx]).double(),
-            torch.tensor(self.instance_weights[idx]).double(),
             torch.tensor(self.curvature[idx]).double(),
             torch.tensor(self.masks[idx]).double(),
+            torch.tensor(self.action[idx]).double(),
+            torch.tensor(self.instance_weights[idx]).double(),
         )
-
-
-class DaggerDataset(AbstractDataset):
-    def __init__(self, record_files):
-        super().__init__()
-        record_files = [f for f in record_files if ".npz" in f]
-        for record_path in tqdm(record_files, desc=f"Read {len(record_files)} data files"):
-            if os.path.islink(record_path):
-                record_path = os.readlink(record_path)
-            record = np.load(record_path)
-            self.append(
-                obs=record["observation_history"][:: conf.IMITATION_DATASET_SAMPLING_RATE],
-                speed=record["speed_history"][:: conf.IMITATION_DATASET_SAMPLING_RATE],
-                wheels_omegas=record["wheels_omegas_history"][:: conf.IMITATION_DATASET_SAMPLING_RATE],
-                angular_velocity=record["angular_velocity_history"][:: conf.IMITATION_DATASET_SAMPLING_RATE],
-                steering_joint_angle=record["steering_joint_angle_history"][:: conf.IMITATION_DATASET_SAMPLING_RATE],
-                action=record["action_history"][:: conf.IMITATION_DATASET_SAMPLING_RATE],
-                curvature=record["curvature_history"][:: conf.IMITATION_DATASET_SAMPLING_RATE],
-            )
-        self.instance_weights = self.recompute_weights()
-
-
-class ImitationDataset(DaggerDataset):
-    def __init__(self, dataset_path):
-        # Initialize tensors to save memory
-        files: list[str] = sorted(os.listdir(dataset_path))
-        record_files = [f for f in files if ".npz" in f]
-        record_files = [os.path.join(dataset_path, f) for f in record_files]
-        super().__init__(record_files)

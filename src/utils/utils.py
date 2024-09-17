@@ -3,7 +3,6 @@ from __future__ import annotations
 import random
 
 import numpy as np
-import pytorch_lightning as pl
 import torch
 
 
@@ -16,11 +15,6 @@ def set_deterministic(seed=42):
 
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
-
-    pl.seed_everything(seed, verbose=False)
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
 
 
 def get_driver_name(driver_id):

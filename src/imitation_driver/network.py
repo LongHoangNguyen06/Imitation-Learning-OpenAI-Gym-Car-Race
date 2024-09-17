@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from dynaconf import Dynaconf
 from torch import nn
 
-conf = Dynaconf(settings_files=["conf/default_conf.py"])
+conf = Dynaconf(settings_files=["src/conf/default_conf.py"])
 
 
 def model_size(model):

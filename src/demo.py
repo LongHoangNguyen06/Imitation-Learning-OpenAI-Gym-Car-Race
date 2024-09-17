@@ -6,15 +6,22 @@ import gymnasium as gym
 import torch
 
 from src.imitation_driver.imitation_driver_controller import ImitationDriverController
-from src.imitation_driver.network import SingleTaskCNN
+from src.imitation_driver.network import MultiTaskCNN, SingleTaskCNN
 from src.utils.env_utils import get_speed, get_wheel_velocities
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+if sys.argv[1].endswith("multi_task.pth"):
+    model = MultiTaskCNN(print_shapes=True).to(device).double()
+elif sys.argv[1].endswith("baseline.pth"):
+    model = SingleTaskCNN(print_shapes=True).to(device).double()
+else:
+    raise ValueError(
+        "Invalid model file. Please provide a valid model file. Either 'static/multi_task.pth' or 'static/baseline.pth'."
+    )
+model.seq = None  # type: ignore
+model.load_state_dict(torch.load(sys.argv[1], weights_only=True))
+controller = ImitationDriverController(conf=None, model=model)  # type: ignore
 
-model = SingleTaskCNN(print_shapes=True).to(device).double()
-model.seq = None
-model.load_state_dict(torch.load(sys.argv[1]))
-controller = ImitationDriverController(conf=None, model=model)
 
 env = gym.make("CarRacing-v2", render_mode="human", continuous=True)
 for seed in range(10):

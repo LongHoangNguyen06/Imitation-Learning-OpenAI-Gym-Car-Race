@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from dynaconf import Dynaconf
 
-conf = Dynaconf(settings_files=["conf/default_conf.py"])
+conf = Dynaconf(settings_files=["src/conf/default_conf.py"])
 
 
 def plot_grad_flow(avg_grads):
