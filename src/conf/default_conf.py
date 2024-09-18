@@ -4,7 +4,7 @@ import multiprocessing
 import os
 
 DEBUG = False  ##### DEBUG #####: change this!
-DO_MULTITASK_LEARNING = True  ##### DEBUG #####: change this!
+DO_MULTITASK_LEARNING = False  ##### DEBUG #####: change this!
 DAGGER_TRAINING = True  ##### DEBUG #####: change this!
 
 USE_SMALL_DATASET = DEBUG

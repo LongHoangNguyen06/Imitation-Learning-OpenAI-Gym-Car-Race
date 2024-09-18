@@ -1,12 +1,12 @@
 ## Featured
 
-- Path Following Controller Expert: path following controller with PID, Pure Pursuit and Stanley controller.
+- Path-Following experts: linear controller PID and geometric controllers: Pure Pursuit & Stanley controller.
 - Multi-task learning CNN architecture.
-- DAgger for: Roll out policy and get correction from expert.
+- DAgger: roll out neural policy, record states and actions from expert then train the policy on the recorded data.
 
 ## Results
 
-Benchmark run on 100 seeds. Experts have privileged access to world map and vehicle's pose. All PID, Pure Pursuit and Stanley Expert use a PID controller for longitudinal control and only differ on lateral steering.
+Benchmark ran on 100 random seeds. Experts have privileged access to world map and vehicle's pose. All of PID, Pure Pursuit and Stanley expert use a PID controller for longitudinal control and only differ on lateral steering.
 
 <table align="center">
     <tr>
@@ -41,6 +41,8 @@ Benchmark run on 100 seeds. Experts have privileged access to world map and vehi
     </tr>
 </table>
 
+Both models were trained with DAgger.
+
 ## Demo
 
 To run the multi-task model
@@ -67,7 +69,9 @@ Gas input to the car is the error between current speed and desired speed.
 
 ### PID Lateral Controller
 
-Cross track error and heading error between reference trajectory and car are used as controller's input.
+One PID controller for cross track error and and one controller for the heading error between reference trajectory and car.
+
+When the standard deviation of the four wheels' rotatory speed is too high, the desired speed will be reduced. This step is crucial to avoid oversteering.
 
 ### Corner cutting
 
@@ -99,19 +103,23 @@ The Stanley controller combines cross-track error (CTE) with heading error and i
 
 ### Baseline CNN Learner
 
+The following picture depicts the architecture of the network. Rough binary search was used to determine the optimal number of parameters.
+
 <p align="center">
-  <img src="static/single_task.png" alt="Single-task learning baseline" width="500"/>
+  <img src="static/single_task.png" alt="Single-task learning baseline" width="400"/>
 </p>
 
-Predicts only steering and gas.
+This baseline network predicts only steering and gas outputs and consists of almost 190,000 parameters.
 
 ### Multi-Task Learning CNN
 
 Extends the baseline by using the backbone's features to predict:
 
-- **Road Mask**: Binary mask of the drivable area.
-- **Curvature of the Road**: Estimation of the road's curvature.
-- **Existence of Chevron Road Signs**: Detection of chevron signs indicating sharp turns.
+- Road segmentation: Predicting a binary mask of the drivable area.
+- Curvature: Estimation of the road's curvature.
+- Existence of Chevron signs: Binary prediction of existence of chevron signs, which indicate sharp turns.
+
+This architecture consists of about 500,000 parameters in training and 190,000 parameters at test time.
 
 ### Data Aggregation
 
@@ -119,10 +127,8 @@ Following code snippet presents the idea of DAgger.
 
 ```python
 def dagger_loop(student_driver, teacher_driver, env):
-    # Set up history
     history = defaultdict(list)
 
-    # Initialize new scenario
     done = False
     observation = env.reset()
     while not done:
@@ -130,8 +136,8 @@ def dagger_loop(student_driver, teacher_driver, env):
         student_action = student_driver.get_action(observation, state)
         teacher_action = teacher_driver.get_action(observation, state)
         history["input"].append((observation, state))
-        observation, done = env.step(np.random.choice([teacher_action, student_action], [0.99**epoch, 1-0.99**epoch]))
-        history["action"].append(teacher_action) # Store teacher's action
+        observation, done = env.step(np.random.choice([teacher_action, student_action], [0.99**epoch, 1-0.99**epoch])) # Roll out randomly either student's action or teacher's action.
+        history["action"].append(teacher_action) # Store only teacher's action.
 
     # Train student on history
     student_driver.learn(history)
