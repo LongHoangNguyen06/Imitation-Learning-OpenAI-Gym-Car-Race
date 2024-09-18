@@ -1,12 +1,20 @@
 ## Featured
 
-- Path-Following experts: linear controller PID and geometric controllers: Pure Pursuit & Stanley controller.
-- Multi-task learning CNN architecture.
-- DAgger: roll out neural policy, record states and actions from expert then train the policy on the recorded data.
+This project explores various concepts of deep learning in general, with a focus on imitation learning. In essence, the imitators learn to drive under the supervision of experts. These experts have access to all the sensor signals available to the imitators, in addition to privileged access to a noise-free world map and the vehicle's pose. We have:
+- Path-Following experts:
+  - Linear PID controller.
+  - Geometric controllers: Pure Pursuit & Stanley controller.
+- Imitation Model:
+  - Basic CNN model with control prediction heads.
+  - Multi-task learning CNN architecture for regularized representation learning.
+- DAgger - Key Idea:
+  - First, roll out the desired neural policy.
+  - Record states and actions from the expert.
+  - Train the policy on the recorded data.
 
 ## Results
 
-Benchmark ran on 100 random seeds. Experts have privileged access to world map and vehicle's pose. All of PID, Pure Pursuit and Stanley expert use a PID controller for longitudinal control and only differ on lateral steering.
+Benchmarks were run on 100 random seeds. The PID, Pure Pursuit, and Stanley experts all use a PID controller for longitudinal control, differing only in their lateral steering methods.
 
 <table align="center">
     <tr>
