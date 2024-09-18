@@ -30,12 +30,12 @@ Benchmark run on 100 seeds. Experts have privileged access to world map and vehi
         <td>888 &plusmn; 27</td>
     </tr>
     <tr>
-        <td>Baseline CNN PID Expert</td>
+        <td>Baseline CNN</td>
         <td>670 &plusmn; 220</td>
         <td>771 &plusmn; 266</td>
     </tr>
     <tr>
-        <td>Multi-Task CNN Policy PID Expert</td>
+        <td>Multi-Task CNN</td>
         <td>790 &plusmn; 174</td>
         <td>905 &plusmn; 160</td>
     </tr>
@@ -112,10 +112,6 @@ Extends the baseline by using the backbone's features to predict:
 - **Road Mask**: Binary mask of the drivable area.
 - **Curvature of the Road**: Estimation of the road's curvature.
 - **Existence of Chevron Road Signs**: Detection of chevron signs indicating sharp turns.
-
-<p align="center">
-  <img src="static/net_flow.png" alt="Architecture" width="800"/>
-</p>
 
 ### Data Aggregation
 
