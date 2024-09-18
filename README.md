@@ -1,3 +1,27 @@
+<h1 align="center">
+    Solving OpenAi Gym CarRace-v2 with Imitation Learning
+</h1>
+
+<p align="center">
+  <img src="static/single_task.png" alt="Single-task learning baseline" width="400"/>
+</p>
+
+## Table of content
+- [Table of content](#table-of-content)
+- [Featured](#featured)
+- [Results](#results)
+- [Demo](#demo)
+- [Methods](#methods)
+  - [PID Longitudinal Controller](#pid-longitudinal-controller)
+  - [PID Lateral Controller](#pid-lateral-controller)
+  - [Corner cutting](#corner-cutting)
+  - [Pure Pursuit Lateral Controller](#pure-pursuit-lateral-controller)
+  - [Stanley Lateral Controller](#stanley-lateral-controller)
+  - [Baseline CNN Learner](#baseline-cnn-learner)
+  - [Multi-Task Learning CNN](#multi-task-learning-cnn)
+  - [Data Aggregation](#data-aggregation)
+
+
 ## Featured
 
 This project explores various concepts of deep learning in general, with a focus on imitation learning. In essence, the imitators learn to drive under the supervision of experts. These experts have access to all the sensor signals available to the imitators, in addition to privileged access to a noise-free world map and the vehicle's pose. We have:
@@ -15,6 +39,8 @@ This project explores various concepts of deep learning in general, with a focus
 ## Results
 
 Benchmarks were run on 100 random seeds. The PID, Pure Pursuit, and Stanley experts all use a PID controller for longitudinal control, differing only in their lateral steering methods.
+
+CarRacing-v0 defines "solving" as getting average reward of 900 over 100 consecutive trials.
 
 <table align="center">
     <tr>
@@ -45,11 +71,11 @@ Benchmarks were run on 100 random seeds. The PID, Pure Pursuit, and Stanley expe
     <tr>
         <td>Multi-Task CNN</td>
         <td>790 &plusmn; 174</td>
-        <td>905 &plusmn; 160</td>
+        <td>905* &plusmn; 160</td>
     </tr>
 </table>
 
-Both models were trained with DAgger.
+Both imitation models were trained with DAgger.
 
 ## Demo
 
@@ -112,10 +138,6 @@ The Stanley controller combines cross-track error (CTE) with heading error and i
 ### Baseline CNN Learner
 
 The following picture depicts the architecture of the network. Rough binary search was used to determine the optimal number of parameters.
-
-<p align="center">
-  <img src="static/single_task.png" alt="Single-task learning baseline" width="400"/>
-</p>
 
 This baseline network predicts only steering and gas outputs and consists of almost 190,000 parameters.
 
