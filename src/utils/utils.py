@@ -16,6 +16,14 @@ def set_deterministic(seed=42):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
+def concatenate_debug_states(src_debug_states, tgt_debug_states):
+    """
+    Update the debug states with the latest values from the chosen driver's debug states.
+    """
+    for key, value in src_debug_states.items():
+        if value:  # Make sure there is at least one entry in the list
+            tgt_debug_states[key].append(value[-1])  # Append the last entry of each property
+
 
 def get_driver_name(driver_id):
     """
@@ -106,3 +114,16 @@ def compute_he(pose, start_point, end_point):
     """
     path_heading = np.arctan2(end_point[1] - start_point[1], end_point[0] - start_point[0])  # Path heading
     return normalize_angle(pose[2] - path_heading)  # Diff yaw and the path heading. Normalize to [-pi, pi]
+
+
+def torch_to_numpy(tensor: torch.Tensor) -> np.ndarray:
+    """
+    Converts a PyTorch tensor to a NumPy array.
+    Parameters:
+    - tensor (torch.Tensor): The input PyTorch tensor.
+    Returns:
+    - numpy.ndarray: The converted NumPy array.
+    """
+    if isinstance(tensor, torch.Tensor):
+        return tensor.detach().cpu().numpy()
+    raise ValueError("Input must be a PyTorch tensor.")

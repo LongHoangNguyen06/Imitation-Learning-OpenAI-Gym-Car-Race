@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+from collections import defaultdict
+
 import numpy as np
 import torch
 import torch.nn.functional as F
-from dynaconf import Dynaconf
 from torch import nn
 
-conf = Dynaconf(settings_files=["src/conf/default_conf.py"])
+from src.utils.conf_utils import get_default_conf
+
+conf = get_default_conf()
 
 
 def model_size(model):
@@ -321,7 +324,11 @@ class SingleTaskCNN(AbstractNet):
             nn.Sequential(nn.LazyLinear(2), nn.Softsign()),
         )
         self.seq = nn.Sequential(self.conv, self.fc)
+        self.debug_states = defaultdict(list)
         self.init_weights(print_shapes=print_shapes)
+
+    def reset(self):
+        self.debug_states = defaultdict(list)
 
     def init_weights(self, print_shapes):
         super().init_weights(print_shapes)
@@ -350,8 +357,8 @@ class SingleTaskCNN(AbstractNet):
         acceleration = outputs[:, 1].reshape(-1, 1)
         batch_size = observation.size(0)
         return (
-            torch.zeros_like(observation, device=observation.device),
-            torch.zeros(batch_size, 1, device=observation.device),
+            torch.zeros((batch_size, *conf.MASK_DIM), device=observation.device),
+            torch.zeros((batch_size, *conf.MASK_DIM), device=observation.device),
             torch.zeros(batch_size, 1, device=observation.device),
             steering,
             acceleration,
@@ -359,6 +366,7 @@ class SingleTaskCNN(AbstractNet):
 
     def hook(self):
         self._hook(self.seq)
+        self.debug_states = defaultdict(list)
 
     def print_shape(self):
         print(f"Single task network")
@@ -366,14 +374,14 @@ class SingleTaskCNN(AbstractNet):
 
 
 class MultiTaskCNN(AbstractNet):
-    def __init__(self, print_shapes=False):
+    def __init__(self, print_shapes=False, store_debug_states = False):
         super().__init__()
         # Backbone
         self.backbone = Encoder()
 
         # Auxiliary tasks
         self.road_decoder = Decoder()
-        self.chevrons_predictor = StatelessDensePredictor(conf.IMITATION_CHEVRON_DIMS)
+        self.chevrons_decoder = Decoder()
         self.curvature_predictor = StatelessDensePredictor(conf.IMITATION_CURVATURE_DIMS)
 
         # Control tasks
@@ -384,29 +392,46 @@ class MultiTaskCNN(AbstractNet):
         self.seq = nn.Sequential(
             self.backbone,
             self.road_decoder,
-            self.chevrons_predictor,
+            self.chevrons_decoder,
             self.curvature_predictor,
             self.steering_predictor,
             self.acceleration_predictor,
         )
 
         # Activation function
+        self.debug_states = defaultdict(list)
+        self.store_debug_states = store_debug_states
         self.init_weights(print_shapes)
+
+    def reset(self):
+        self.debug_states = defaultdict(list)
 
     def forward(self, observation, state):
         # Back bone forward pass
         code = self.backbone(observation)
+        if self.store_debug_states:
+            self.debug_states["code_history"].append(code.detach().cpu().numpy())
 
         # Auxiliary tasks
         road_mask = self.road_decoder(code)
+        if self.store_debug_states:
+            self.debug_states["road_mask_prediction_history"].append(road_mask.detach().cpu().numpy())
+        chevrons_mask = self.chevrons_decoder(code)
+        if self.store_debug_states:
+            self.debug_states["chevrons_mask_prediction_history"].append(chevrons_mask.detach().cpu().numpy())
         code = code.flatten(start_dim=1)
-        chevrons_visible = self.chevrons_predictor(code)
         curvature = self.curvature_predictor(code)
+        if self.store_debug_states:
+            self.debug_states["curvature_prediction_history"].append(curvature.detach().cpu().numpy())
 
         # Control tasks
         steering = F.softsign(self.steering_predictor(code, state))
+        if self.store_debug_states:
+            self.debug_states["steering_prediction_history"].append(steering.detach().cpu().numpy())
         acceleration = F.softsign(self.acceleration_predictor(code, state))
-        return road_mask, chevrons_visible, curvature, steering, acceleration
+        if self.store_debug_states:
+            self.debug_states["acceleration_prediction_history"].append(acceleration.detach().cpu().numpy())
+        return road_mask, chevrons_mask, curvature, steering, acceleration
 
     def hook(self):
         for module in self.seq:

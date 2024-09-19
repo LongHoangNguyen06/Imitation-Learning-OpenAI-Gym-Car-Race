@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 import pygame
-from dynaconf import Dynaconf
 
 from src.expert_drivers.abstract_classes.abstract_controller import AbstractController
 
 
 class HumanDriverController(AbstractController):
-    def __init__(self, conf: Dynaconf):
+    def __init__(self, conf):
         super().__init__()
         pygame.init()
         self.conf = conf

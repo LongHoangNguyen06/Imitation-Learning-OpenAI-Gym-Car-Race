@@ -6,21 +6,9 @@ import gymnasium as gym
 import torch
 
 from src.imitation_driver.imitation_driver_controller import ImitationDriverController
-from src.imitation_driver.network import MultiTaskCNN, SingleTaskCNN
-from src.utils.env_utils import get_speed, get_wheel_velocities
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-if sys.argv[1].endswith("multi_task.pth"):
-    model = MultiTaskCNN(print_shapes=True).to(device).double()
-elif sys.argv[1].endswith("baseline.pth"):
-    model = SingleTaskCNN(print_shapes=True).to(device).double()
-else:
-    raise ValueError(
-        "Invalid model file. Please provide a valid model file. Either 'static/multi_task.pth' or 'static/baseline.pth'."
-    )
-model.seq = None  # type: ignore
-model.load_state_dict(torch.load(sys.argv[1], weights_only=True))
-controller = ImitationDriverController(conf=None, model=model)  # type: ignore
+controller = ImitationDriverController(weights=sys.argv[1])  # type: ignore
 
 
 env = gym.make("CarRacing-v2", render_mode="human", continuous=True)
@@ -29,18 +17,7 @@ for seed in range(10):
     terminated = truncated = done = False
     while not (done or terminated or truncated):
         env.render()
-        speed = get_speed(env)
-        wheels_omegas = get_wheel_velocities(env)
-        steering_joint_angle = env.unwrapped.car.wheels[0].joint.angle  # type: ignore
-        angular_velocity = env.unwrapped.car.hull.angularVelocity  # type: ignore
-        action = controller.get_action(
-            observation,
-            info,
-            speed=speed,
-            wheels_omegas=wheels_omegas,
-            steering_joint_angle=steering_joint_angle,
-            angular_velocity=angular_velocity,
-        )
+        action = controller.get_action(observation,info) # Model only see noisy observations
         observation, reward, terminated, truncated, info = env.step(action)
 
 # Close the environment

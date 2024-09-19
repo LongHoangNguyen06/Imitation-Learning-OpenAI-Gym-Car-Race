@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 import numpy as np
-from dynaconf import Dynaconf
 
 from src.utils import utils
 
 
 class PathMetricsComputer:
-    def __init__(self, track: np.ndarray, conf: Dynaconf):
+    def __init__(self, track: np.ndarray, conf):
         self.vehicle_position = None
         self.conf = conf
         self.track = track

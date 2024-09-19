@@ -3,30 +3,35 @@ from __future__ import annotations
 from collections import defaultdict
 
 import torch
-from dynaconf import Dynaconf
 
 from src.expert_drivers.abstract_classes.abstract_controller import AbstractController
 from src.imitation_driver import network
+from src.utils import conf_utils
+from src.utils.utils import concatenate_debug_states
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+conf = conf_utils.get_default_conf()
 
 
 class ImitationDriverController(AbstractController):
-    def __init__(self, conf: Dynaconf, model: network.AbstractNet = None):
+    def __init__(self, model: network.AbstractNet | None = None, weights: str | None = None):
         super().__init__()
+        if weights is None:
+            weights = conf.MODEL_PATH
         if model is None:
-            if conf.IMITATION_MODEL_PATH is not None:
-                try:
-                    model = network.MultiTaskCNN().double().to(device)
-                    model.seq = None
-                    model.load_state_dict(torch.load(conf.IMITATION_MODEL_PATH, weights_only=True))
-                except:
-                    model = network.SingleTaskCNN().double().to(device)
-                    model.seq = None
-                    model.load_state_dict(torch.load(conf.IMITATION_MODEL_PATH, weights_only=True))
+            assert weights is not None
+            model_weights = torch.load(weights, weights_only=True)
+            try:
+                model = network.MultiTaskCNN().double().to(device)
+                model.seq = None  # type: ignore
+                model.load_state_dict(model_weights)
+            except:
+                model = network.SingleTaskCNN().double().to(device)
+                model.seq = None  # type: ignore
+                model.load_state_dict(model_weights)
             model.share_memory()
-        self.conf = conf
         self.model = model
+        self.debug_states = defaultdict(list)
 
     def reset(self):
         """
@@ -40,6 +45,7 @@ class ImitationDriverController(AbstractController):
         """
         super().reset()
         self.debug_states = defaultdict(list)
+        self.model.reset()
 
     def get_action(self, observation, info, *args, **kwargs):
         """
@@ -52,19 +58,13 @@ class ImitationDriverController(AbstractController):
         Returns:
             np.ndarray: The continuous action to be executed by the car.
         """
-        from src.utils.dataset import convert_action_models_to_gym, preprocess_input_testing
+        from src.training.utils.preprocess import convert_action_models_to_gym, preprocess_input_testing
 
-        observation, state = preprocess_input_testing(
-            obs=observation,
-            speed=kwargs["speed"],
-            wheels_omegas=kwargs["wheels_omegas"],
-            angular_velocity=kwargs["angular_velocity"],
-            steering_joint_angle=kwargs["steering_joint_angle"],
-        )
+        observation, state = preprocess_input_testing(obs=observation)
+        self.debug_states["noisy_state_history"].append(state)
         observation = torch.tensor(observation).double().to(device)
         state = torch.tensor(state).double().to(device)
         _, __, ___, steering, acceleration = self.model(observation, state)  # type: ignore
-
-        action = torch.cat([steering, acceleration], dim=1).cpu().detach().numpy()
-
-        return convert_action_models_to_gym(action).squeeze()
+        concatenate_debug_states(self.model.debug_states, self.debug_states)
+        self.model.reset()
+        return convert_action_models_to_gym(steering, acceleration).squeeze()

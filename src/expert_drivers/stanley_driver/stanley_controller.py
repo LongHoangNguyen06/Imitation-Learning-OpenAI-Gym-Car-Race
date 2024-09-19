@@ -3,18 +3,15 @@ from __future__ import annotations
 from collections import defaultdict
 
 import numpy as np
-from dynaconf import Dynaconf
-from numba import njit
 
 from src.expert_drivers.abstract_classes.abstract_controller import AbstractController
 from src.expert_drivers.pid_driver.path_metrics_computer import PathMetricsComputer
 from src.expert_drivers.pid_driver.pid_driver_controller import PidDriverController
 from src.expert_drivers.pure_pursuit_driver.pure_pursuit_controller import chaikin_corner_cutting
-from src.utils import utils
 
 
 class StanleyController(AbstractController):
-    def __init__(self, conf: Dynaconf):
+    def __init__(self, conf):
         super().__init__()
         self.conf = conf
         self.longtitudinal_controller = PidDriverController(conf)
@@ -31,7 +28,7 @@ class StanleyController(AbstractController):
         self.debug_states = defaultdict(list)
         self.path_metric_computer = None
 
-    def get_continuous_action(self, observation, info, *args, **kwargs):
+    def get_action(self, observation, info, *args, **kwargs):
         """
         Get the continuous action to be executed by the car.
 

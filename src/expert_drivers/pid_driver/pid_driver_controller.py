@@ -3,20 +3,20 @@ from __future__ import annotations
 from collections import defaultdict
 
 import numpy as np
-from dynaconf import Dynaconf
 
 from src.expert_drivers.abstract_classes.abstract_controller import AbstractController
 from src.expert_drivers.pid_driver import penalty
 from src.expert_drivers.pid_driver.path_metrics_computer import PathMetricsComputer
 from src.expert_drivers.pid_driver.pid import PIDController
+from src.utils.conf_utils import extend_conf
 
 
 class ComponentPidDriverController(AbstractController):
-    def __init__(self, conf: Dynaconf):
+    def __init__(self, conf):
         """
         Initializes a PIDDriverController object.
         Args:
-            conf (Dynaconf): The configuration object containing the PID controller parameters.
+            conf: The configuration object containing the PID controller parameters.
         """
 
         super().__init__()
@@ -165,25 +165,21 @@ class ComponentPidDriverController(AbstractController):
 
 
 def _new_pid_driver(conf, new_conf_path):
-    conf = conf.copy()
-    # Load another configuration file into a new Dynaconf object
-    new_conf = Dynaconf(settings_files=[new_conf_path])  # Replace with the path to your new config file
-    conf.update(new_conf)
-    return ComponentPidDriverController(conf=conf)
+    return ComponentPidDriverController(conf=extend_conf(conf, [new_conf_path]))
 
 
 class PidDriverController(AbstractController):
-    def __init__(self, conf: Dynaconf = None):  # type: ignore
+    def __init__(self, conf = None):  # type: ignore
         """
         Initializes a PIDDriverController object.
         Args:
-            conf (Dynaconf): The configuration object containing the PID controller parameters.
+            conf: The configuration object containing the PID controller parameters.
         """
         super().__init__()
         if conf is None:
-            from src.utils import env_utils
+            from utils import conf_utils
 
-            conf = env_utils.get_conf(env_utils.parse_args(["--mode", "debug", "--controller", "pid"]), print_out=False)
+            conf = conf_utils.get_conf(controller="pid", print_out=False)
         self.conf = conf
         self.debug_states = defaultdict(list)
         self.path_metric_computer = None
