@@ -6,7 +6,7 @@ from collections import defaultdict
 import numpy as np
 
 from src.imitation_driver.imitation_driver_controller import ImitationDriverController
-from src.utils import conf_utils
+from src.utils import conf_utils, utils
 from src.utils.env_utils import (
     create_env,
     extract_track,
@@ -69,7 +69,6 @@ class Simulator:
             env.render()
             if isinstance(self.controller, ImitationDriverController):
                 action = self.controller.get_action(observation, info)
-                self.controller.reset()
             else:
                 action = self.controller.get_action(
                     observation,
@@ -85,6 +84,8 @@ class Simulator:
             observation, reward, terminated, truncated, info = env.step(action)
 
             # Record history
+            utils.concatenate_debug_states(self.controller.debug_states, history)
+            self.controller.reset()
             history["action_history"].append(action)
             history["reward_history"].append(reward)
 
@@ -107,7 +108,6 @@ class Simulator:
                 truncated=truncated,
                 done=done,
                 track=track,
-                **history,
-                **self.controller.debug_states,
+                **history
             )
         return seed, seed_reward, done, terminated, truncated, np.mean(history["off_track_history"])

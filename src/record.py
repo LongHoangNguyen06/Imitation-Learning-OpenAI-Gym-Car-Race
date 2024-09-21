@@ -92,7 +92,7 @@ def get_controller(controller: str, conf, *_, **kwargs) -> AbstractController:
         return StanleyController(conf=conf)
     if controller == "imitation":
         assert "model_path" in kwargs, "Model path must be provided for imitation controller."
-        return ImitationDriverController(weights=kwargs["model_path"])
+        return ImitationDriverController(weights=kwargs["model_path"], store_debug_states=True)
     raise ValueError(f"Invalid controller: {controller}")
 
 

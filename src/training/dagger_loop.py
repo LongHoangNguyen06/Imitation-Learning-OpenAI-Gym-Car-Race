@@ -2,9 +2,6 @@ from __future__ import annotations
 
 import warnings
 
-from src.expert_drivers.pid_driver.pid_driver_controller import PidDriverController
-from src.utils import utils
-
 # Ignore all warnings
 warnings.filterwarnings("ignore")
 # isort:maintain_block
@@ -17,8 +14,9 @@ import numpy as np
 from tqdm.contrib.concurrent import process_map
 
 import wandb
+from src.expert_drivers.pid_driver.pid_driver_controller import PidDriverController
 from src.imitation_driver.imitation_driver_controller import ImitationDriverController
-from utils import conf_utils, env_utils
+from src.utils import conf_utils, env_utils
 
 conf = conf_utils.get_default_conf()
 
@@ -44,7 +42,27 @@ def choose_action(student_action, teacher_action, epoch):
         return teacher_action
     return student_action
 
-
+def randomly_discard_low_curvature(history, teacher_driver_debug_states):
+    """
+    Randomly discards the last entry in the history and teacher_driver_debug_states
+    if the last curvature value is below a specified minimum threshold and a random
+    probability check passes.
+    Args:
+        history (dict): A dictionary containing historical data.
+        teacher_driver_debug_states (dict): A dictionary containing debug states of the teacher driver,
+                                            including a "curvature_history" key.
+    Modifies:
+        history: Removes the last entry from each list in the dictionary if conditions are met.
+        teacher_driver_debug_states: Removes the last entry from each list in the dictionary if conditions are met.
+    """
+    if (
+        teacher_driver_debug_states["curvature_history"][-1] < conf.IMITATION_MIN_CURVATURE
+        and np.random.random() < conf.IMITAITON_MIN_CURVATURE_DISCARD_PROB
+    ):
+        for key in history:
+            history[key] = history[key][:-1]
+        for key in teacher_driver_debug_states:
+            teacher_driver_debug_states[key] = teacher_driver_debug_states[key][:-1]
 class DaggerLoop:
 
     def __init__(self, output_dir, student_model):
@@ -87,6 +105,7 @@ class DaggerLoop:
 
     def _log_wandb(self, epoch):
         if conf.WANDB_LOG:
+            wandb.log({"dagger/rewards": wandb.Histogram(list(self.rewards))}, step=epoch)
             wandb.log({"dagger/reward": self.reward}, step=epoch)
             wandb.log({"dagger/teacher_action_proboability": teacher_action_probability(epoch)}, step=epoch)
             wandb.log({"dagger/#records": len(os.listdir(self.output_dir))}, step=epoch)
@@ -138,6 +157,9 @@ class DaggerLoop:
 
             # Record history
             history["action_history"].append(teacher_action)
+
+            # Discard low curvature data
+            randomly_discard_low_curvature(history, teacher_driver.debug_states)
 
             # Go to next step
             seed_reward += reward  # type: ignore

@@ -288,7 +288,7 @@ def init_weight(m):
 
 
 class SingleTaskCNN(AbstractNet):
-    def __init__(self, print_shapes=False):
+    def __init__(self, print_shapes=False, store_debug_states=False):
         super().__init__()
         # Network architecture
         super().__init__()
@@ -325,6 +325,7 @@ class SingleTaskCNN(AbstractNet):
         )
         self.seq = nn.Sequential(self.conv, self.fc)
         self.debug_states = defaultdict(list)
+        self.store_debug_states = store_debug_states
         self.init_weights(print_shapes=print_shapes)
 
     def reset(self):
@@ -356,6 +357,11 @@ class SingleTaskCNN(AbstractNet):
         steering = outputs[:, 0].reshape(-1, 1)
         acceleration = outputs[:, 1].reshape(-1, 1)
         batch_size = observation.size(0)
+        if self.store_debug_states:
+            self.debug_states["steering_prediction_history"].append(steering.detach().cpu().numpy())
+        if self.store_debug_states:
+            self.debug_states["acceleration_prediction_history"].append(acceleration.detach().cpu().numpy())
+
         return (
             torch.zeros((batch_size, *conf.MASK_DIM), device=observation.device),
             torch.zeros((batch_size, *conf.MASK_DIM), device=observation.device),
@@ -374,7 +380,7 @@ class SingleTaskCNN(AbstractNet):
 
 
 class MultiTaskCNN(AbstractNet):
-    def __init__(self, print_shapes=False, store_debug_states = False):
+    def __init__(self, print_shapes=False, store_debug_states=False):
         super().__init__()
         # Backbone
         self.backbone = Encoder()

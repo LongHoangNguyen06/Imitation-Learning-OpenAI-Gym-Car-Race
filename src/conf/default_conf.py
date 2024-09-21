@@ -32,6 +32,6 @@ IMAGE_CUTTING_THRESHOLD = 84
 OBSERVATION_DIM = (3, IMAGE_CUTTING_THRESHOLD, 96)
 MASK_DIM = (1, IMAGE_CUTTING_THRESHOLD, 96)
 
-from src.conf.class_frequencies import *
-from src.conf.imitation_learning import *
-from src.conf.normalization import *
+from src.conf.class_frequencies_conf import *
+from src.conf.imitation_learning_conf import *
+from src.conf.normalization_conf import *

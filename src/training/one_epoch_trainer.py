@@ -21,7 +21,7 @@ import torch.nn.functional as F
 from torch.nn.functional import binary_cross_entropy_with_logits as bce_logits
 
 import wandb
-from src.training.utils.debug_plot import *
+from src.training.utils import tensorboard_plot, wandb_plot
 from src.utils import conf_utils
 
 # isort:end_maintain_block
@@ -109,7 +109,7 @@ class Trainer:
                 self.collect_gradient_stats()
 
             # Logging
-            self._log()
+        self._log()
         self.model.unhook()
 
     def collect_gradient_stats(self):
@@ -121,6 +121,7 @@ class Trainer:
         Returns:
             None
         """
+        self.avg_grad = defaultdict(list)
         for n, p in self.model.named_parameters():
             if p.requires_grad and "bias" not in n:
                 self.avg_grad[n].append(p.grad.abs().mean().item())
@@ -228,7 +229,7 @@ class Trainer:
             if key.startswith("Conv2d") or key.startswith("ConvTranspose2d"):
                 self.tensorboard_writer.add_image(
                     f"{model_name}_activation_image_{key}",
-                    plot_tensor_grid(model.activations[key]),
+                    tensorboard_plot.plot_tensor_grid(model.activations[key]),
                     self.epoch,
                     dataformats="HWC",
                 )
@@ -237,10 +238,10 @@ class Trainer:
         """
         Logs various network components to TensorBoard.
         """
-        self.tensorboard_writer.add_figure("opt_grad_flow", plot_grad_flow(self.avg_grad), self.epoch)
+        self.tensorboard_writer.add_figure("opt_grad_flow", tensorboard_plot.plot_grad_flow(self.avg_grad), self.epoch)
         self.tensorboard_writer.add_image(
             "statistic_control_steering",
-            plot_predicted_action_and_actual_action(
+            tensorboard_plot.plot_predicted_action_and_actual_action(
                 predicted_action=self.predicted_steering, actual_action=self.gt_steering
             ),
             self.epoch,
@@ -248,7 +249,7 @@ class Trainer:
         )
         self.tensorboard_writer.add_image(
             "statistic_control_acceleration",
-            plot_predicted_action_and_actual_action(
+            tensorboard_plot.plot_predicted_action_and_actual_action(
                 predicted_action=self.predicted_acceleration, actual_action=self.gt_acceleration
             ),
             self.epoch,
@@ -256,7 +257,7 @@ class Trainer:
         )
         self.tensorboard_writer.add_image(
             "statistic_auxiliary_curvature",
-            plot_predicted_action_and_actual_action(
+            tensorboard_plot.plot_predicted_action_and_actual_action(
                 predicted_action=self.predicted_curvature, actual_action=self.gt_curvature
             ),
             self.epoch,
@@ -300,14 +301,15 @@ class Trainer:
         """
         # Write to wandb
         if conf.WANDB_LOG:
-            wandb.log({f"opt/train_loss": wandb.Histogram(self.losses)}, step=self.epoch)
+            wandb.log({"opt/train_loss": wandb.Histogram(self.losses)}, step=self.epoch)
             for i, opt in enumerate(self.optimizers):
                 wandb.log({f"opt/lr_{i}": opt.param_groups[0]["lr"]}, step=self.epoch)
-            wandb.log({f"opt/train_loss_mean": np.mean(self.losses)}, step=self.epoch)
-            wandb.log({f"opt/steering_loss_mean": np.mean(self.steering_losses)}, step=self.epoch)
-            wandb.log({f"opt/acceleration_loss_mean": np.mean(self.acceleration_losses)}, step=self.epoch)
-            wandb.log({f"opt/road_segmentation_loss_mean": np.mean(self.road_segmentation_losses)}, step=self.epoch)
+            wandb.log({"opt/train_loss_mean": np.mean(self.losses)}, step=self.epoch)
+            wandb.log({"opt/steering_loss_mean": np.mean(self.steering_losses)}, step=self.epoch)
+            wandb.log({"opt/acceleration_loss_mean": np.mean(self.acceleration_losses)}, step=self.epoch)
+            wandb.log({"opt/road_segmentation_loss_mean": np.mean(self.road_segmentation_losses)}, step=self.epoch)
             wandb.log(
                 {f"opt/chevron_segmentation_loss_mean": np.mean(self.chevron_segmentation_losses)}, step=self.epoch
             )
-            wandb.log({f"opt/curvature_loss_mean": np.mean(self.curvature_losses)}, step=self.epoch)
+            wandb.log({"opt/curvature_loss_mean": np.mean(self.curvature_losses)}, step=self.epoch)
+            # wandb.log({"opt/grad_flow": wandb_plot.plot_grad_flow(self.avg_grad)}, self.epoch)

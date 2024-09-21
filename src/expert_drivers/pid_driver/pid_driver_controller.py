@@ -169,7 +169,7 @@ def _new_pid_driver(conf, new_conf_path):
 
 
 class PidDriverController(AbstractController):
-    def __init__(self, conf = None):  # type: ignore
+    def __init__(self, conf=None):  # type: ignore
         """
         Initializes a PIDDriverController object.
         Args:
@@ -177,7 +177,7 @@ class PidDriverController(AbstractController):
         """
         super().__init__()
         if conf is None:
-            from utils import conf_utils
+            from src.utils import conf_utils
 
             conf = conf_utils.get_conf(controller="pid", print_out=False)
         self.conf = conf

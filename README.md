@@ -47,58 +47,66 @@ Benchmarks were run on 100 random fixed seeds. CarRacing-v0 defines "solving" as
 #### Expert Results
 
 <table align="center">
-  <caption>Max 600 Iterations</caption>
-    <tr>
-        <th>Experts</th>
-        <th>Mean</th>
-        <th>Min</th>
-        <th>Max</th>
-    </tr>
-    <tr>
-        <td>PID</td>
-        <td>801 &plusmn; 10</td>
-        <td>536</td>
-        <td>944</td>
-    </tr>
-    <tr>
-        <td>Pure Pursuit</td>
-        <td>744 &plusmn; 98</td>
-        <td>533</td>
-        <td>945</td>
-    </tr>
-    <tr>
-        <td>Stanley</td>
-        <td>737 &plusmn; 114</td>
-        <td>391</td>
-        <td>994</td>
-    </tr>
-</table>
-<br>
-<table align="center">
   <caption>Max 1000 Iterations</caption>
     <tr>
         <th>Experts</th>
         <th>Mean</th>
         <th>Min</th>
         <th>Max</th>
+        <th>Challenge Solved</th>
     </tr>
     <tr>
         <td>PID</td>
         <td>920 &plusmn; 27</td>
         <td>778</td>
         <td>944</td>
+        <td>Yes</td>
     </tr>
     <tr>
         <td>Pure Pursuit</td>
         <td>896 &plusmn; 29</td>
         <td>815</td>
         <td>945</td>
+        <td>No</td>
     </tr>
     <tr>
         <td>Stanley</td>
         <td>882 &plusmn; 37</td>
         <td>732</td>
         <td>944</td>
+        <td>No</td>
+    </tr>
+</table>
+<br>
+<table align="center">
+  <caption>Max 600 Iterations</caption>
+    <tr>
+        <th>Experts</th>
+        <th>Mean</th>
+        <th>Min</th>
+        <th>Max</th>
+        <th>Challenge Solved</th>
+    </tr>
+    <tr>
+        <td>PID</td>
+        <td>801 &plusmn; 10</td>
+        <td>536</td>
+        <td>944</td>
+        <td>No</td>
+    </tr>
+    <tr>
+        <td>Pure Pursuit</td>
+        <td>744 &plusmn; 98</td>
+        <td>533</td>
+        <td>945</td>
+        <td>No</td>
+    </tr>
+    <tr>
+        <td>Stanley</td>
+        <td>737 &plusmn; 114</td>
+        <td>391</td>
+        <td>994</td>
+        <td>No</td>
     </tr>
 </table>
 
@@ -107,34 +115,6 @@ Note that only little time was spent on tuning the pure pursuit and stanley cont
 #### Imitators Results
 
 <table align="center">
-  <caption>Max 600 Iterations</caption>
-    <tr>
-        <th>Architecture</th>
-        <th>Mean</th>
-        <th>Min</th>
-        <th>Max</th>
-        <th>Expert</th>
-        <th>% of Expert</th>
-    </tr>
-    <tr>
-        <td>Single-Task CNN</td>
-        <td>770 &plusmn; 256</td>
-        <td>256</td>
-        <td>949</td>
-        <td>PID</td>
-        <td>96%</td>
-    </tr>
-    <tr>
-        <td>Multi-Task CNN</td>
-        <td>753 &plusmn; 180</td>
-        <td>244</td>
-        <td>948</td>
-        <td>PID</td>
-        <td>94  %</td>
-    </tr>
-</table>
-<br>
-<table align="center">
   <caption>Max 1000 Iterations</caption>
     <tr>
         <th>Architecture</th>
@@ -143,14 +123,16 @@ Note that only little time was spent on tuning the pure pursuit and stanley cont
         <th>Max</th>
         <th>Expert</th>
         <th>% of Expert</th>
+        <th>Challenge Solved</th>
     </tr>
     <tr>
         <td>Single-Task CNN</td>
-        <td>861 &plusmn; 161</td>
-        <td>216</td>
+        <td>883 &plusmn; 127</td>
+        <td>219</td>
         <td>949</td>
         <td>PID</td>
-        <td>93%</td>
+        <td>95%</td>
+        <td>No</td>
     </tr>
     <tr>
         <td>Multi-Task CNN</td>
@@ -159,6 +141,38 @@ Note that only little time was spent on tuning the pure pursuit and stanley cont
         <td>948</td>
         <td>PID</td>
         <td>91%</td>
+        <td>No</td>
+    </tr>
+</table>
+<br>
+<table align="center">
+  <caption>Max 600 Iterations</caption>
+    <tr>
+        <th>Architecture</th>
+        <th>Mean</th>
+        <th>Min</th>
+        <th>Max</th>
+        <th>Expert</th>
+        <th>% of Expert</th>
+        <th>Challenge Solved</th>
+    </tr>
+    <tr>
+        <td>Single-Task CNN</td>
+        <td>801 &plusmn; 125</td>
+        <td>259</td>
+        <td>949</td>
+        <td>PID</td>
+        <td>100%</td>
+        <td>No</td>
+    </tr>
+    <tr>
+        <td>Multi-Task CNN</td>
+        <td>753 &plusmn; 180</td>
+        <td>244</td>
+        <td>948</td>
+        <td>PID</td>
+        <td>94%</td>
+        <td>No</td>
     </tr>
 </table>
 
@@ -173,13 +187,8 @@ Download the best trained weights
         <td>Test time parameters</td>
     </tr>
     <tr>
-        <td>Multi-Task CNN</td>
-        <td><a href="https://api.wandb.ai/artifactsV2/default/long-pollehn1/QXJ0aWZhY3Q6MTIzNjAzODMyNQ%3D%3D/3508ff190c4b1b425fa7a7150647b42c/2024_09_19_cgpool1903_01_01_05_MultiTaskCNN_814.pth">2024_09_19_cgpool1903_01_01_05_MultiTaskCNN_814.pth</a></td>
-        <td>200k</td>
-    </tr>
-    <tr>
         <td>Single-Task CNN</td>
-        <td><a href="https://api.wandb.ai/artifactsV2/default/long-pollehn1/QXJ0aWZhY3Q6MTIzNTEzNDM3Ng%3D%3D/89091bbbc142d25e0a53850ca2ad2e4d/2024_09_18_cgpool1908_22_58_35_SingleTaskCNN_818.pth">2024_09_18_cgpool1908_22_58_35_SingleTaskCNN_818.pth</a></td>
+        <td><a href="https://api.wandb.ai/artifactsV2/default/long-pollehn1/QXJ0aWZhY3Q6MTIzNzkyNTQ1Nw%3D%3D/94050699f17a1171a1b1a3b4e470ebba/2024_09_20_cgpool1902_10_10_01_SingleTaskCNN125_822.pth">2024_09_20_cgpool1902_10_10_01_SingleTaskCNN125_822.pth</a></td>
         <td>200k</td>
     </tr>
 </table>

@@ -4,9 +4,6 @@ import warnings
 
 from tqdm import tqdm
 
-from src.training.checkpoint import Checkpoint
-from utils.conf_utils import get_default_conf
-
 # Ignore all warnings
 warnings.filterwarnings("ignore")
 
@@ -29,10 +26,12 @@ from torch.utils.tensorboard import SummaryWriter  # type: ignore
 
 import wandb
 from src.imitation_driver import network
+from src.training.checkpoint import Checkpoint
 from src.training.dagger_loop import DaggerLoop, teacher_action_probability
 from src.training.dataset import SequenceDataset, StateDataset, sequence_collate_fn
 from src.training.one_epoch_trainer import Trainer
 from src.utils import io_utils
+from src.utils.conf_utils import get_default_conf
 from src.utils.utils import set_deterministic
 
 # isort:end_maintain_block

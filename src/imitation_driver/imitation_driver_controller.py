@@ -14,7 +14,7 @@ conf = conf_utils.get_default_conf()
 
 
 class ImitationDriverController(AbstractController):
-    def __init__(self, model: network.AbstractNet | None = None, weights: str | None = None):
+    def __init__(self, model: network.AbstractNet | None = None, weights: str | None = None, store_debug_states=False):
         super().__init__()
         if weights is None:
             weights = conf.MODEL_PATH
@@ -22,16 +22,17 @@ class ImitationDriverController(AbstractController):
             assert weights is not None
             model_weights = torch.load(weights, weights_only=True)
             try:
-                model = network.MultiTaskCNN().double().to(device)
+                model = network.MultiTaskCNN(store_debug_states=store_debug_states).double().to(device)
                 model.seq = None  # type: ignore
                 model.load_state_dict(model_weights)
             except:
-                model = network.SingleTaskCNN().double().to(device)
+                model = network.SingleTaskCNN(store_debug_states=store_debug_states).double().to(device)
                 model.seq = None  # type: ignore
                 model.load_state_dict(model_weights)
             model.share_memory()
         self.model = model
         self.debug_states = defaultdict(list)
+        self.store_debug_states = store_debug_states
 
     def reset(self):
         """
@@ -61,10 +62,12 @@ class ImitationDriverController(AbstractController):
         from src.training.utils.preprocess import convert_action_models_to_gym, preprocess_input_testing
 
         observation, state = preprocess_input_testing(obs=observation)
-        self.debug_states["noisy_state_history"].append(state)
+        if self.store_debug_states:
+            self.debug_states["noisy_state_history"].append(state)
         observation = torch.tensor(observation).double().to(device)
         state = torch.tensor(state).double().to(device)
         _, __, ___, steering, acceleration = self.model(observation, state)  # type: ignore
-        concatenate_debug_states(self.model.debug_states, self.debug_states)
+        if self.store_debug_states:
+            concatenate_debug_states(self.model.debug_states, self.debug_states)
         self.model.reset()
         return convert_action_models_to_gym(steering, acceleration).squeeze()

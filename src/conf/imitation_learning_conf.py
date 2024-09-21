@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 
-DO_MULTITASK_LEARNING = True
+DO_MULTITASK_LEARNING = False
 USE_SMALL_DATASET = False
 WANDB_LOG = True
 TENSOR_BOARD_LOG = False
@@ -56,7 +56,7 @@ IMITATION_STEERING_LOSS = 1  # Control loss: Predict the steering angle of exper
 
 ################################################################################################################################
 # DAgger parameters
-IMITATION_EPOCHS = 5000
+IMITATION_EPOCHS = 200
 DAGGER_OUTPUT_DIR = "/graphics/scratch2/students/nguyenlo/CarRaceOutputs/dagger_data/"
 os.makedirs(name=DAGGER_OUTPUT_DIR, exist_ok=True)
 IMITATION_LR_SCHEDULER_STEP_SIZE = 25
@@ -65,7 +65,7 @@ IMITATION_TEACHER_P_CUT_OFF = 0.05  # if p_teacher < cut_off, we just use the st
 IMITATION_DATASET_LIMIT_PER_EPOCH = 32  # Avoid quadratic growth of the dataset since dagger produces a lot of data.
 IMITATION_DATASET_RECENT_MUST_INCLUDE = 8  # Must learn current n data records.
 IMITATION_STORE_ALL_RECORDS_EPOCH = 30  # Below this epoch, store all the records. Bootstrapping.
-IMITATION_STORE_REWARD_THRESHOLD = 600  # Store the data if the reward is below this threshold.
+IMITATION_STORE_REWARD_THRESHOLD = 700  # Store the data if the reward is below this threshold.
 IMITATION_START_SEED = 100000  # Start seed for the environment to generate the data with dagger.
 
 ################################################################################################################################
@@ -74,3 +74,12 @@ SEQUENCE_BATCH_SIZE = 8  # Loading 32 sequences as one batch. Each sequence at m
 STATE_BATCH_SIZE = 64  # Train on 256 frames at once. This is equal to BATCH_SIZE.
 SEQUENCE_NUM_WORKERS = 2  # How many subprocesses to use for sequence loading.
 SEQUENCE_PREFETCH_FACTOR = 2  # Number of batches of sequences loaded in advance by each worker.
+
+################################################################################################################################
+# Data filtering parameters
+IMITATION_MIN_CURVATURE = 0.05
+IMITAITON_MIN_CURVATURE_DISCARD_PROB = 0.0
+
+#################################################################################################################################
+# Check points parameter
+MIN_THRESHOLD_UPLOAD = 800
