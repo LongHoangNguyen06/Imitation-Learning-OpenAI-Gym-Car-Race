@@ -4,8 +4,11 @@ import os
 import socket
 from datetime import datetime
 
+from pydantic import validate_call
 
-def get_next_record_number(parent_directory, dataset_name, digits=3) -> str:
+
+@validate_call
+def get_next_record_number(parent_directory: str, dataset_name: str, digits=3) -> str:
     """
     Dataset in parent_directory is named as "<record_name>_<nr>", etc.
 
@@ -30,3 +33,17 @@ def get_current_time_formatted():
     :rtype: str
     """
     return datetime.now().strftime(f"%Y_%m_%d_{socket.gethostname()}_%H_%M_%S")
+
+@validate_call
+def join_dir(*args)-> str:
+    """
+    Joins two directories.
+    Args:
+        a (str): The first directory.
+        b (str): The second directory.
+    Returns:
+        str: The joined directory.
+    """
+    c = os.path.join(*args)
+    os.makedirs(c, exist_ok=True)
+    return c

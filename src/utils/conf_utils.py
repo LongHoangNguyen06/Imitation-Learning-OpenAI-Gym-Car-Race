@@ -33,18 +33,14 @@ def get_conf(controller: str, print_out=False) -> Dynaconf:
     """
     settings_files = ["src/conf/default_conf.py"]
 
-    if controller == "human":
-        settings_files.append("src/conf/controller_conf/human_conf.py")
-    elif controller == "constant":
-        settings_files.append("src/conf/controller_conf/constant_conf.py")
-    elif controller == "pid":
+    if controller == "pid":
         settings_files.append("src/conf/controller_conf/pid_conf.py")
     elif controller == "pure_pursuit":
         settings_files.append("src/conf/controller_conf/pure_pursuit_conf.py")
     elif controller == "stanley":
         settings_files.append("src/conf/controller_conf/stanley_conf.py")
     elif controller == "imitation":
-        settings_files.append("src/conf/controller_conf/imitation_conf.py")
+        pass
     else:
         raise ValueError(f"Invalid controller: {controller}")
     conf = Dynaconf(envvar_prefix="DYNACONF", settings_files=settings_files, lowercase_read=False)

@@ -24,28 +24,6 @@ def concatenate_debug_states(src_debug_states, tgt_debug_states):
         if value:  # Make sure there is at least one entry in the list
             tgt_debug_states[key].append(value[-1])  # Append the last entry of each property
 
-
-def get_driver_name(driver_id):
-    """
-    Returns the name of the driver based on the given driver_id.
-    Parameters:
-    driver_id (int): The ID of the driver.
-    Returns:
-    str: The name of the driver corresponding to the driver_id.
-    Raises:
-    ValueError: If the driver_id is unknown.
-    """
-    if driver_id == 0:
-        return "Normal driver"
-    elif driver_id == 1:
-        return "Corner 1 driver"
-    elif driver_id == 2:
-        return "Corner 2 driver"
-    elif driver_id == 3:
-        return "Corner 3 driver"
-    raise ValueError(f"Unknown driver id: {driver_id}")
-
-
 def normalize_angle(rad):
     """
     Normalize an angle in radians to the range [-pi, pi].

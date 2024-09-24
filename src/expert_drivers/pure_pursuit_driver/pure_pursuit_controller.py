@@ -98,8 +98,8 @@ class PurePursuitController(AbstractController):
         look_ahead_point = self._compute_look_ahead_point(look_ahead_offset)
         rear_wheel_heading_error = utils.compute_he(self.rear_wheel_pose, self.rear_wheel_pose[:2], look_ahead_point)
         steering = np.arctan2(2 * self.wheel_base * np.sin(rear_wheel_heading_error), self.look_ahead_distance)
-        self.debug_states["look_ahead_offset_history"].append(look_ahead_offset)
-        self.debug_states["look_ahead_point_history"].append(look_ahead_point)
+        self.debug_states["look_ahead_offset"].append(look_ahead_offset)
+        self.debug_states["look_ahead_point"].append(look_ahead_point)
         for key in self.longtitudinal_controller.debug_states:
             self.debug_states[key] = self.longtitudinal_controller.debug_states[key]
         return steering

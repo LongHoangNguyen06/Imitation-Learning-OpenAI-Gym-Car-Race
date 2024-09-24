@@ -5,8 +5,6 @@ import os
 DO_MULTITASK_LEARNING = False
 USE_SMALL_DATASET = False
 WANDB_LOG = True
-TENSOR_BOARD_LOG = False
-TENSOR_BOARD_EXPENSIVE_LOG = False
 
 ################################################################################################################################
 # Output parameters for imitation learning
@@ -29,7 +27,10 @@ IMITATION_LATENT_DIM = 6 * IMITATION_NUM_FILTERS_ENCODER  # Constants for the la
 
 ################################################################################################################################
 # Prediction network parameters
-IMITATION_CURVATURE_DIMS = [32, 16, 1]
+IMITATION_CURVATURE_DIMS = [64, 32, 1]
+IMITATION_DESIRED_SPEED_DIMS = [64, 32, 1]
+IMITATION_CTE_DIMS = [64, 32, 1]
+IMITATION_HE_DIMS = [64, 32, 1]
 IMITATION_STEERING_DIMS = [64, 32, 1]
 IMITATION_ACCELERATION_DIMS = [64, 32, 1]
 
@@ -47,10 +48,18 @@ if DO_MULTITASK_LEARNING:
     IMITATION_CHEVRON_SEGMENTATION_LOSS = 1  # Auxilliary loss: predict whether chevron markings are visible.
     IMITATION_ROAD_SEGMENTATION_LOSS = 1  # Auxilliary loss: Reconstruction loss: predict the road segmentation.
     IMITATION_CURVATURE_LOSS = 1  # Auxilliary loss: Predict the curvature of the road.
+    IMITATION_DESIRED_SPEED_LOSS = 1  # Auxilliary loss: Predict the desired speed of the expert.
+    IMITATION_SPEED_ERROR_LOSS = 1  # Control loss: Predict the speed error of the expert.
+    IMITATION_CTE_LOSS = 1  # Control loss: Predict the cross track error of the expert.
+    IMITATION_HE_LOSS = 1  # Control loss: Predict the heading error of the expert.
 else:
     IMITATION_CHEVRON_SEGMENTATION_LOSS = 0  # Auxilliary loss: predict whether chevron markings are visible.
     IMITATION_ROAD_SEGMENTATION_LOSS = 0  # Auxilliary loss: Reconstruction loss: predict the road segmentation.
     IMITATION_CURVATURE_LOSS = 0  # Auxilliary loss: Predict the curvature of the road.
+    IMITATION_DESIRED_SPEED_LOSS = 0  # Auxilliary loss: Predict the desired speed of the expert.
+    IMITATION_SPEED_ERROR_LOSS = 0  # Control loss: Predict the speed error of the expert.
+    IMITATION_CTE_LOSS = 0  # Control loss: Predict the cross track error of the expert.
+    IMITATION_HE_LOSS = 0  # Control loss: Predict the heading error of the expert
 IMITATION_ACCELERATION_LOSS = 1  # Control loss: Predict the acceleration of expert.
 IMITATION_STEERING_LOSS = 1  # Control loss: Predict the steering angle of expert.
 
@@ -58,6 +67,7 @@ IMITATION_STEERING_LOSS = 1  # Control loss: Predict the steering angle of exper
 # DAgger parameters
 IMITATION_EPOCHS = 200
 DAGGER_OUTPUT_DIR = "/graphics/scratch2/students/nguyenlo/CarRaceOutputs/dagger_data/"
+DAGGER_TEST_DIR = "/graphics/scratch2/students/nguyenlo/CarRace/CarRaceOutputs/records/dagger_testing_data_008"
 os.makedirs(name=DAGGER_OUTPUT_DIR, exist_ok=True)
 IMITATION_LR_SCHEDULER_STEP_SIZE = 25
 IMITATION_P_DECAY = 0.975  # Decay the probability of using the teacher model.
@@ -66,20 +76,16 @@ IMITATION_DATASET_LIMIT_PER_EPOCH = 32  # Avoid quadratic growth of the dataset 
 IMITATION_DATASET_RECENT_MUST_INCLUDE = 8  # Must learn current n data records.
 IMITATION_STORE_ALL_RECORDS_EPOCH = 30  # Below this epoch, store all the records. Bootstrapping.
 IMITATION_STORE_REWARD_THRESHOLD = 700  # Store the data if the reward is below this threshold.
-IMITATION_START_SEED = 100000  # Start seed for the environment to generate the data with dagger.
-
+IMITATION_TRAINING_START_SEED = 100000  # Start seed for the environment to generate the data with dagger.
 ################################################################################################################################
 # Data loading parameters
-SEQUENCE_BATCH_SIZE = 8  # Loading 32 sequences as one batch. Each sequence at most 600 frames.
-STATE_BATCH_SIZE = 64  # Train on 256 frames at once. This is equal to BATCH_SIZE.
+SEQUENCE_BATCH_SIZE = 8  # Loading 8     sequences as one batch. Each sequence at most 600 frames.
+STATE_BATCH_SIZE = 64  # Train on 64 frames at once. This is equal to BATCH_SIZE.
 SEQUENCE_NUM_WORKERS = 2  # How many subprocesses to use for sequence loading.
 SEQUENCE_PREFETCH_FACTOR = 2  # Number of batches of sequences loaded in advance by each worker.
-
-################################################################################################################################
-# Data filtering parameters
-IMITATION_MIN_CURVATURE = 0.05
-IMITAITON_MIN_CURVATURE_DISCARD_PROB = 0.0
 
 #################################################################################################################################
 # Check points parameter
 MIN_THRESHOLD_UPLOAD = 800
+IMITATION_MIN_CURVATURE = 0.01
+IMITATION_MIN_CURVATURE_DISCARD_PROB = 0.0

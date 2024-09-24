@@ -76,9 +76,9 @@ class ComponentPidDriverController(AbstractController):
         if self.path_metric_computer is None:
             self.path_metric_computer = PathMetricsComputer(self.track, self.conf)
         self.cte, self.he, self.curvature = self.path_metric_computer.compute_metrics(self.pose)
-        self.debug_states["curvature_history"].append(self.curvature)
-        self.debug_states["cte_history"].append(self.cte)
-        self.debug_states["he_history"].append(self.he)
+        self.debug_states["curvature"].append(self.curvature)
+        self.debug_states["cte"].append(self.cte)
+        self.debug_states["he"].append(self.he)
 
         self.gas, self.brake = self.longitudinal_control()
         self.steer = self.lateral_control()
@@ -96,9 +96,9 @@ class ComponentPidDriverController(AbstractController):
             (float, float): The longitudinal control action.
         """
         self.desired_speed = self.compute_desired_speed()
-        self.debug_states["desired_speed_history"].append(self.desired_speed)
+        self.debug_states["desired_speed"].append(self.desired_speed)
         self.speed_error = self.desired_speed - self.speed
-        self.debug_states["speed_error_history"].append(self.speed_error)
+        self.debug_states["speed_error"].append(self.speed_error)
 
         self.gas, self.brake = 0.0, 0.0
         if self.speed_error >= 0:
@@ -121,8 +121,8 @@ class ComponentPidDriverController(AbstractController):
         # Update PID controllers and return control
         self.cte_control = np.clip(self.lateral_cte_pid.update(self.cte), -1.0, 1.0)
         self.he_control = np.clip(self.lateral_he_pid.update(self.he), -1.0, 1.0)
-        self.debug_states["cte_control_history"].append(self.cte_control)
-        self.debug_states["he_control_history"].append(self.he_control)
+        self.debug_states["cte_control"].append(self.cte_control)
+        self.debug_states["he_control"].append(self.he_control)
         self.control = np.clip(self.cte_control + self.he_control, -1.0, 1.0)
         self.control = penalty.clamp_steering(self.control, self.gas)
         return self.control
@@ -238,18 +238,18 @@ class PidDriverController(AbstractController):
         if self.curvature < self.conf.PID_SUB_CONFIGS[0][0]:
             action = self.normal_driver.get_action(observation, info, *args, **kwargs)
             self.up_to_date_debug_states(self.normal_driver.debug_states)
-            self.debug_states["driver_history"].append(0)
+            self.debug_states["driver"].append(0)
         elif self.curvature < self.conf.PID_SUB_CONFIGS[1][0]:
             action = self.corner_1_driver.get_action(observation, info, *args, **kwargs)
             self.up_to_date_debug_states(self.corner_1_driver.debug_states)
-            self.debug_states["driver_history"].append(1)
+            self.debug_states["driver"].append(1)
         elif self.curvature < self.conf.PID_SUB_CONFIGS[2][0]:
             action = self.corner_2_driver.get_action(observation, info, *args, **kwargs)
             self.up_to_date_debug_states(self.corner_2_driver.debug_states)
-            self.debug_states["driver_history"].append(2)
+            self.debug_states["driver"].append(2)
         else:
             action = self.corner_3_driver.get_action(observation, info, *args, **kwargs)
             self.up_to_date_debug_states(self.corner_3_driver.debug_states)
-            self.debug_states["driver_history"].append(3)
-        self.debug_states["decision_curvature_history"].append(self.curvature)
+            self.debug_states["driver"].append(3)
+        self.debug_states["decision_curvature"].append(self.curvature)
         return action

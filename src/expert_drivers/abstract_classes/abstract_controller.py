@@ -1,17 +1,18 @@
 from __future__ import annotations
 
+from collections import defaultdict
+
 
 class AbstractController:
     def __init__(self):
-        """Constructor"""
+        self.debug_states: defaultdict = defaultdict(list)
         self.conf = None
-        self.debug_states = dict()
 
     def reset(self):
         """
         Resets the controller.
         """
-        self.debug_states = dict()
+        self.debug_states = defaultdict(list)
 
     def get_action(self, observation, info, *args, **kwargs):
         """

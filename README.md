@@ -8,10 +8,13 @@
 
 ## Table of content
 - [Table of content](#table-of-content)
-- [Featured](#featured)
 - [Results 🔥](#results-)
-    - [Expert Results](#expert-results)
-    - [Imitators Results](#imitators-results)
+  - [Original Challenge within 1000 Iterations](#original-challenge-within-1000-iterations)
+    - [Experts](#experts)
+    - [End-To-End Models](#end-to-end-models)
+  - [Short Challenge within 600 Iterations](#short-challenge-within-600-iterations)
+    - [Experts](#experts-1)
+    - [End-To-End Models](#end-to-end-models-1)
 - [Demo 🔥](#demo-)
 - [Methods](#methods)
   - [PID Longitudinal Controller](#pid-longitudinal-controller)
@@ -24,30 +27,27 @@
   - [Data Aggregation](#data-aggregation)
 
 
-## Featured
-
-This project explores various concepts of deep learning in general, with a focus on imitation learning. In essence, the imitators learn to drive under the supervision of experts.
-
-<b>These experts have all privileged accesses to a noise-free world map, vehicle's pose and state. Imitators have only accesses to a noisy bird-eye-view and state of the car </b>. Under this assumption the expert's performance is an upper bound of the imitators.
-
-As an overview, following drivers are available:
-- Path-Following experts:
-  - Linear PID controller.
-  - Geometric controllers: Pure Pursuit & Stanley controller.
-- Imitation Model:
-  - Single-task CNN model with only control prediction heads.
-  - Multi-task learning CNN architecture for regularized representation learning.
-
-For training of the imitators, DAgger was employed to iron out accumulated errors of imitator.
 
 ## Results 🔥
 
+<b>In this setting experts have all privileged accesses to a noise-free world map, vehicle's pose and state. Imitators have only accesses to a noisy bird-eye-view and state of the car.</b>.
+
+Following expert and imitative drivers are available:
+
+- Path-Following experts:
+  - Linear PID controller.
+  - Geometric controllers: Pure Pursuit & Stanley controller.
+- Imitatitive end-to-end learning models:
+  - Single-task CNN model with only control prediction heads.
+  - Multi-task learning CNN architecture for regularized representation learning.
+
 Benchmarks were run on 100 random fixed seeds. CarRacing-v0 defines "solving" as getting average reward of 900 over 100 consecutive trials, each trial runs at most 1000 iterations.
 
-#### Expert Results
+### Original Challenge within 1000 Iterations
+
+#### Experts
 
 <table align="center">
-  <caption>Max 1000 Iterations</caption>
     <tr>
         <th>Experts</th>
         <th>Mean</th>
@@ -60,26 +60,67 @@ Benchmarks were run on 100 random fixed seeds. CarRacing-v0 defines "solving" as
         <td>920 &plusmn; 27</td>
         <td>778</td>
         <td>944</td>
-        <td>Yes</td>
+        <td>✅</td>
     </tr>
     <tr>
         <td>Pure Pursuit</td>
         <td>896 &plusmn; 29</td>
         <td>815</td>
         <td>945</td>
-        <td>No</td>
+        <td>❌</td>
     </tr>
     <tr>
         <td>Stanley</td>
         <td>882 &plusmn; 37</td>
         <td>732</td>
         <td>944</td>
-        <td>No</td>
+        <td>❌</td>
     </tr>
 </table>
 <br>
+
+#### End-To-End Models
+
 <table align="center">
-  <caption>Max 600 Iterations</caption>
+    <tr>
+        <th>Architecture</th>
+        <th>Mean</th>
+        <th>Min</th>
+        <th>Max</th>
+        <th>Expert</th>
+        <th>% Expert</th>
+        <th>% Solved</th>
+        <th>Challenge Solved</th>
+    </tr>
+    <tr>
+        <td>Single-Task CNN</td>
+        <td>883 &plusmn; 127</td>
+        <td>219</td>
+        <td>949</td>
+        <td>PID</td>
+        <td>95%</td>
+        <td>98%</td>
+        <td>❌</td>
+    </tr>
+    <tr>
+        <td>Multi-Task CNN</td>
+        <td>846 &plusmn; 173</td>
+        <td>204</td>
+        <td>948</td>
+        <td>PID</td>
+        <td>91%</td>
+        <td>94%</td>
+        <td>❌</td>
+    </tr>
+</table>
+
+### Short Challenge within 600 Iterations
+
+Original challenge from University Tübingen. The challenge is considered solved If the model achieved on average 700 points after 600 iterations in 100 trials.
+
+#### Experts
+
+<table align="center">
     <tr>
         <th>Experts</th>
         <th>Mean</th>
@@ -92,61 +133,27 @@ Benchmarks were run on 100 random fixed seeds. CarRacing-v0 defines "solving" as
         <td>801 &plusmn; 10</td>
         <td>536</td>
         <td>944</td>
-        <td>No</td>
+        <td>✅</td>
     </tr>
     <tr>
         <td>Pure Pursuit</td>
         <td>744 &plusmn; 98</td>
         <td>533</td>
         <td>945</td>
-        <td>No</td>
+        <td>✅</td>
     </tr>
     <tr>
         <td>Stanley</td>
         <td>737 &plusmn; 114</td>
         <td>391</td>
         <td>994</td>
-        <td>No</td>
+        <td>✅</td>
     </tr>
 </table>
 
-Note that only little time was spent on tuning the pure pursuit and stanley controllers, or on the experts in general. Tetter gain can be expected with more tuning.
-
-#### Imitators Results
+#### End-To-End Models
 
 <table align="center">
-  <caption>Max 1000 Iterations</caption>
-    <tr>
-        <th>Architecture</th>
-        <th>Mean</th>
-        <th>Min</th>
-        <th>Max</th>
-        <th>Expert</th>
-        <th>% of Expert</th>
-        <th>Challenge Solved</th>
-    </tr>
-    <tr>
-        <td>Single-Task CNN</td>
-        <td>883 &plusmn; 127</td>
-        <td>219</td>
-        <td>949</td>
-        <td>PID</td>
-        <td>95%</td>
-        <td>No</td>
-    </tr>
-    <tr>
-        <td>Multi-Task CNN</td>
-        <td>846 &plusmn; 173</td>
-        <td>204</td>
-        <td>948</td>
-        <td>PID</td>
-        <td>91%</td>
-        <td>No</td>
-    </tr>
-</table>
-<br>
-<table align="center">
-  <caption>Max 600 Iterations</caption>
     <tr>
         <th>Architecture</th>
         <th>Mean</th>
@@ -163,7 +170,7 @@ Note that only little time was spent on tuning the pure pursuit and stanley cont
         <td>949</td>
         <td>PID</td>
         <td>100%</td>
-        <td>No</td>
+        <td>✅</td>
     </tr>
     <tr>
         <td>Multi-Task CNN</td>
@@ -172,7 +179,7 @@ Note that only little time was spent on tuning the pure pursuit and stanley cont
         <td>948</td>
         <td>PID</td>
         <td>94%</td>
-        <td>No</td>
+        <td>✅</td>
     </tr>
 </table>
 
@@ -180,24 +187,34 @@ Note that only little time was spent on tuning the pure pursuit and stanley cont
 
 Download the best trained weights
 
-<table align="center">
-    <tr>
-        <td>Model</td>
-        <td>Links</td>
-        <td>Test time parameters</td>
-    </tr>
-    <tr>
-        <td>Single-Task CNN</td>
-        <td><a href="https://api.wandb.ai/artifactsV2/default/long-pollehn1/QXJ0aWZhY3Q6MTIzNzkyNTQ1Nw%3D%3D/94050699f17a1171a1b1a3b4e470ebba/2024_09_20_cgpool1902_10_10_01_SingleTaskCNN125_822.pth">2024_09_20_cgpool1902_10_10_01_SingleTaskCNN125_822.pth</a></td>
-        <td>200k</td>
-    </tr>
-</table>
+```bash
+wget https://api.wandb.ai/artifactsV2/default/long-pollehn1/QXJ0aWZhY3Q6MTIzNzkyNTQ1Nw%3D%3D/94050699f17a1171a1b1a3b4e470ebba/2024_09_20_cgpool1902_10_10_01_SingleTaskCNN125_822.pth
+```
 
-To run the models
+To run the models in a GUI
 
 ```bash
-python3 -m src.demo <path_to_weight.pth>
+python3 -m src.demo 2024_09_20_cgpool1902_10_10_01_SingleTaskCNN125_822.pth
 ```
+
+To benchmark and store the controller internal states
+
+```bash
+python3 -m src.record --student_controller imitation --student_model_path 2024_09_20_cgpool1902_10_10_01_SingleTaskCNN125_822.pth --max_iterations 600
+```
+
+For controller debugging
+
+```bash
+python3 -m src.replay.replay --record_path <path> --outputp_dir <path> --plot_all_frames
+```
+
+The last script will produce a replay of the model comparing with ground truth expert's decisions.
+
+<p align="center">
+  <img src="static/output.gif" alt="Dagger" width="675"/>
+</p>
+
 
 ## Methods
 

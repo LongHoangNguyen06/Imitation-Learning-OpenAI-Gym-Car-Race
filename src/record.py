@@ -13,10 +13,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import torch.multiprocessing as mp
-from tqdm.contrib.concurrent import process_map
 
 from src.expert_drivers.abstract_classes.abstract_controller import AbstractController
-from src.expert_drivers.human_driver.human_driver_controller import HumanDriverController
 from src.expert_drivers.pid_driver.pid_driver_controller import PidDriverController
 from src.expert_drivers.pure_pursuit_driver.pure_pursuit_controller import PurePursuitController
 from src.expert_drivers.stanley_driver.stanley_controller import StanleyController
@@ -24,8 +22,6 @@ from src.imitation_driver.imitation_driver_controller import ImitationDriverCont
 from src.utils import conf_utils
 from src.utils.io_utils import get_next_record_number
 from src.utils.simulator import Simulator
-
-REWARD_DIM = 1
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
@@ -38,23 +34,24 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     """
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--controller",
+        "--student_controller",
         type=str,
-        default="human",
-        choices=["human", "pid", "pure_pursuit", "stanley", "imitation"],
+        default="pid",
+        choices=["pid", "pure_pursuit", "stanley", "imitation"],
         help="Controller of agent.",
     )
     parser.add_argument(
-        "--additional_config_files",
-        type=str,
-        nargs="*",  # Accepts zero or more arguments
-        help="Optional additional configuration files.",
-    )
-    parser.add_argument(
-        "--model_path",
+        "--student_model_path",
         type=str,
         default=None,
         help="Optional parameter path when recording an imitator.",
+    )
+    parser.add_argument(
+        "--teacher_controller",
+        type=str,
+        default=None,
+        choices=["pid", "pure_pursuit", "stanley", "imitation"],
+        help="Controller of agent.",
     )
     parser.add_argument(
         "--max_iterations",
@@ -82,8 +79,6 @@ def get_controller(controller: str, conf, *_, **kwargs) -> AbstractController:
     Raises:
     - ValueError: If an invalid controller type is specified.
     """
-    if controller == "human":
-        return HumanDriverController(conf=conf)
     if controller == "pid":
         return PidDriverController(conf=conf)
     if controller == "pure_pursuit":
@@ -106,39 +101,41 @@ def run(argv):
     """
     # Creating configurations
     args = parse_args(argv)
-    conf = conf_utils.get_conf(args.controller)
-    conf = conf_utils.extend_conf(conf, args.additional_config_files)
-    # print conf
+    conf = conf_utils.get_conf(args.student_controller)
+
+    # Create output directory
     dataset_path = os.path.join(
         conf.RECORD_OUTPUT_DIR,
         args.record_name + "_" + get_next_record_number(conf.RECORD_OUTPUT_DIR, args.record_name),
     )
-    print(f"Recording to {dataset_path}")
-    # Create dataset directory
     Path(dataset_path).mkdir(parents=True, exist_ok=True)
+    print(f"Recording to {dataset_path}")
 
     # Simulation
-    controller = get_controller(args.controller, conf, model_path=args.model_path)
-    sim = Simulator(output_dir=dataset_path, max_steps=args.max_iterations, do_record=True, controller=controller)
-    data = process_map(
-        sim.simulate,
-        conf.RECORD_SEEDS,
-        max_workers=conf.GYM_MAX_WORKERS,
-        desc=f"Simulating {args.controller} controller",
-    )
+    data, reward = Simulator(
+        output_dir=dataset_path,
+        max_steps=args.max_iterations,
+        student_controller=get_controller(args.student_controller, conf, model_path=args.student_model_path),
+        teacher_controller=(
+            get_controller(args.teacher_controller, conf_utils.get_conf(args.teacher_controller))
+            if args.teacher_controller is not None
+            else None
+        ),
+        dagger_mode=False,
+    ).simulate(0)
 
     # Save results to pandas dataframe
     df = pd.DataFrame(
         data, columns=["seed", "seed_reward", "done", "terminated", "truncated", "off_track_percentage"]
     ).sort_values(by="seed_reward")
-    rewards = df["seed_reward"]
-    print(
-        f"Trial ended. Mean reward: {np.mean(rewards)}. Std reward: {np.std(rewards)}. Min reward: {np.min(rewards)}. Max reward: {np.max(rewards)}"
-    )
     df.to_csv(
-        os.path.join(dataset_path, f"results_{args.record_name}_{int(np.mean(rewards))}_{int(np.std(rewards))}_.csv"),
+        os.path.join(dataset_path, f"results_{args.record_name}_{reward}.csv"),
         index=False,
     )
+
+    # Print statistics
+    rewards = df["seed_reward"]
+    print(f"Mean={reward}. Std={np.std(rewards)}. Min={np.min(rewards)}. Max={np.max(rewards)}")
     return rewards
 
 
