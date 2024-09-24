@@ -4,7 +4,6 @@ import os
 
 import numpy as np
 import torch
-from pydantic import validate_call
 from torch.utils.data import Dataset
 
 from src.imitation_driver.training.preprocess import GroundTruth, preprocess_input_training, preprocess_sequences_training
@@ -30,7 +29,6 @@ class SequenceDataset(Dataset):
         self.read_all_sequences = read_all_sequences
         self._update_data_dir()
 
-    @validate_call
     def _read_record_files_names(self) -> list[str]:
         """
         Reads and returns a list of record file names from the specified data directory.

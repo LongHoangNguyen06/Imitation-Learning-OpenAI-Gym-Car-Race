@@ -122,6 +122,7 @@ def run(argv):
             else None
         ),
         dagger_mode=False,
+        do_early_break=False,
     ).simulate(0)
 
     # Save results to pandas dataframe

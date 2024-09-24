@@ -87,5 +87,8 @@ SEQUENCE_PREFETCH_FACTOR = 2  # Number of batches of sequences loaded in advance
 #################################################################################################################################
 # Check points parameter
 MIN_THRESHOLD_UPLOAD = 800
-IMITATION_MIN_CURVATURE = 0.01
-IMITATION_MIN_CURVATURE_DISCARD_PROB = 0.0
+IMITATION_MIN_CURVATURE_DISCARD_THRESHOLD = 0.01
+IMITATION_MIN_CURVATURE_DISCARD_PROB = 0.5
+IMITATION_EARLY_BREAK_NO_REWARD_STEPS = 15
+IMITATION_EARLY_BREAK_MAX_CTE = 7.5
+IMITATION_EARLY_BREAK_MAX_HE = 0.75

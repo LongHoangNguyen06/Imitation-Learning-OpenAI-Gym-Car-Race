@@ -154,6 +154,8 @@ class WandbLogger:
         wandb.log({"dagger/reward": simulator.reward}, step=epoch)
         wandb.log({"dagger/teacher_action_proboability": teacher_action_probability(epoch)}, step=epoch)
         wandb.log({"dagger/#records": len(os.listdir(simulator.output_dir))}, step=epoch)
+        wandb.log({"dagger/off_track": wandb.Histogram(simulator.off_track)}, step=epoch)
+        wandb.log({"dagger/off_track_mean": np.mean(simulator.off_track)}, step=epoch)
 
     def _log_losses(self, dataset_name, loss_function, epoch):
         """
@@ -209,19 +211,28 @@ class WandbLogger:
             step=epoch,
         )
         wandb.log(
-            {f"opt_{dataset_name}/chevron_segmentation_loss": wandb.Histogram(loss_function.chevron_segmentation_losses)},
+            {
+                f"opt_{dataset_name}/chevron_segmentation_loss": wandb.Histogram(
+                    loss_function.chevron_segmentation_losses
+                )
+            },
             step=epoch,
         )
         wandb.log({f"opt_{dataset_name}/curvature_loss": wandb.Histogram(loss_function.curvature_losses)}, step=epoch)
         wandb.log(
             {f"opt_{dataset_name}/desired_speed_loss": wandb.Histogram(loss_function.desired_speed_losses)}, step=epoch
         )
-        wandb.log({f"opt_{dataset_name}/speed_error_loss": wandb.Histogram(loss_function.speed_error_losses)}, step=epoch)
+        wandb.log(
+            {f"opt_{dataset_name}/speed_error_loss": wandb.Histogram(loss_function.speed_error_losses)}, step=epoch
+        )
         wandb.log({f"opt_{dataset_name}/cte_loss": wandb.Histogram(loss_function.cte_losses)}, step=epoch)
         wandb.log({f"opt_{dataset_name}/he_loss": wandb.Histogram(loss_function.he_losses)}, step=epoch)
 
         # Log cosine similarities
-        wandb.log({f"cosine_similarity_{dataset_name}_mean/steering": np.mean(loss_function.steering_cosine_similarity)}, step=epoch)
+        wandb.log(
+            {f"cosine_similarity_{dataset_name}_mean/steering": np.mean(loss_function.steering_cosine_similarity)},
+            step=epoch,
+        )
         wandb.log(
             {
                 f"cosine_similarity_{dataset_name}_mean/acceleration": np.mean(
@@ -271,11 +282,7 @@ class WandbLogger:
             step=epoch,
         )
         wandb.log(
-            {
-                f"cosine_similarity_{dataset_name}/curvature": wandb.Histogram(
-                    loss_function.curvature_cosine_similarity
-                )
-            },
+            {f"cosine_similarity_{dataset_name}/curvature": wandb.Histogram(loss_function.curvature_cosine_similarity)},
             step=epoch,
         )
         wandb.log(
@@ -298,7 +305,9 @@ class WandbLogger:
             {f"cosine_similarity_{dataset_name}/cte": wandb.Histogram(loss_function.cte_cosine_similarity)},
             step=epoch,
         )
-        wandb.log({f"cosine_similarity_{dataset_name}/he": wandb.Histogram(loss_function.he_cosine_similarity)}, step=epoch)
+        wandb.log(
+            {f"cosine_similarity_{dataset_name}/he": wandb.Histogram(loss_function.he_cosine_similarity)}, step=epoch
+        )
 
     def _log_predictions(self, dataset_name, loss_function, epoch):
         """
@@ -456,6 +465,7 @@ class WandbLogger:
             self._upload_model(epoch, validate_reward)
         elif validate_reward >= conf.MIN_THRESHOLD_UPLOAD:
             self._upload_model(epoch, validate_reward)
+        wandb.log({"best_validate_reward": self.best_validate_reward}, step=epoch)
 
     def _upload_model(self, epoch, validate_reward):
         """

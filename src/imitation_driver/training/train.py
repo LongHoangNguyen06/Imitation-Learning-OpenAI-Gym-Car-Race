@@ -13,7 +13,6 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
 import torch
 import torch.multiprocessing as mp
-from pydantic import validate_call
 from torch.utils.data import DataLoader
 
 import wandb
@@ -52,7 +51,6 @@ def get_model():  # type: ignore
     return model, optimizer, scheduler
 
 
-@validate_call
 def get_data_loader(data_dir: str, epoch: int, read_all_sequences: bool, train: bool):
     """
     Returns a generator that yields StateDataset objects from a given data directory.

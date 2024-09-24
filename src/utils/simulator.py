@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import os
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 
 import numpy as np
 import torch
-from pydantic import validate_call
 from tqdm.contrib.concurrent import process_map
 
 from src.expert_drivers.abstract_classes.abstract_controller import AbstractController
@@ -26,7 +25,6 @@ from src.utils.env_utils import (
 conf = conf_utils.get_default_conf()
 
 
-@validate_call
 def teacher_action_probability(epoch: int):
     """
     Returns the probability of the teacher self.action being chosen.
@@ -71,7 +69,7 @@ def randomly_discard_low_curvature(record: dict):
         if the conditions are met.
     """
     if (
-        record["curvature"][-1] < conf.IMITATION_MIN_CURVATURE
+        record["curvature"][-1] < conf.IMITATION_MIN_CURVATURE_DISCARD_THRESHOLD
         and np.random.random() < conf.IMITATION_MIN_CURVATURE_DISCARD_PROB
     ):
         for key in record:
@@ -79,6 +77,7 @@ def randomly_discard_low_curvature(record: dict):
         return 1
     return 0
 
+SimulationResult = namedtuple("SimulationResult", ["seed", "reward", "done", "terminated", "truncated", "off_track"])
 
 class Simulator:
     def __init__(
@@ -89,6 +88,7 @@ class Simulator:
         teacher_controller: AbstractController | None = None,
         dagger_mode: bool = False,
         start_seed_counter: int = conf.IMITATION_TRAINING_START_SEED,
+        do_early_break: bool = True
     ) -> None:
         """
         Initializes the simulator with the given parameters.
@@ -112,6 +112,7 @@ class Simulator:
         self.dagger_mode = dagger_mode
         self.epoch = -1
         self.counter = start_seed_counter
+        self.do_early_breaking = do_early_break
 
     def _get_seeds(self):
         """
@@ -133,7 +134,6 @@ class Simulator:
             return list(range(self.counter, self.counter + n_seeds))
         return conf.RECORD_SEEDS
 
-    @validate_call
     def simulate(self, epoch: int):
         """
         Perform the Dagger loop for imitation learning.
@@ -149,12 +149,13 @@ class Simulator:
         self.epoch = epoch
 
         # Simulate and return the average reward
-        ret = process_map(
+        results = process_map(
             self._simulate_one_seed, self._get_seeds(), max_workers=conf.GYM_MAX_WORKERS, desc=f"Simulation Loop"
         )
-        self.rewards = [r[1] for r in ret]
+        self.rewards = [result.reward for result in results]
+        self.off_track = [result.off_track for result in results]
         self.reward = np.mean(self.rewards)
-        return ret, self.reward
+        return results, self.reward
 
     def _get_action(self, controller, info):
         """
@@ -238,8 +239,8 @@ class Simulator:
 
         if do_store_record:
             for key in self.record:
-                assert (
-                    len(self.record[key]) == (self.step - self.discarded)
+                assert len(self.record[key]) == (
+                    self.step - self.discarded
                 ), f"Key {key} has length {len(self.record[key])} but simulation ran {self.step} steps and discarded {self.discarded}."
             np.savez(
                 os.path.join(self.output_dir, f"{seed}_{self.seed_reward}.npz"),
@@ -267,7 +268,29 @@ class Simulator:
             self.action = self.student_action  # type: ignore
         return self.action
 
-    @validate_call
+    def _do_early_breaking(self) -> bool:
+        """
+        Determines whether to perform an early termination of the simulation.
+        Returns:
+            bool: True if any of the early termination conditions are met, otherwise False.
+        """
+        if self.step >= self.max_steps:
+            return True
+
+        if not self._do_early_breaking:
+            return False
+
+        if self.steps_without_rewards >= conf.IMITATION_EARLY_BREAK_NO_REWARD_STEPS:
+            return True
+
+        if (
+            np.abs(self.record["cte"][-1]) >= conf.IMITATION_EARLY_BREAK_MAX_CTE
+            and np.abs(self.record["he"][-1]) >= conf.IMITATION_EARLY_BREAK_MAX_HE
+        ):
+            return True
+
+        return False
+
     def _simulate_one_seed(self, seed: int):
         """
         Simulates a seed in a racecar environment.
@@ -288,6 +311,9 @@ class Simulator:
         self.discarded = 0
         self.track = extract_track(self.env)
 
+        # Early breaking variables
+        self.steps_without_rewards = 0
+
         # Start simulation
         while not (self.done or self.terminated or self.truncated):
             # Query controllers
@@ -302,20 +328,24 @@ class Simulator:
             self._record_post_simulation()
             self.observation = next_observation
             self.seed_reward += self.reward  # type: ignore
+            if self.reward <= 0.0:  # type: ignore
+                self.steps_without_rewards += 1
+            else:
+                self.steps_without_rewards = 0
+
+            # Increment self.step
+            self.step += 1
+            if self._do_early_breaking():
+                self.terminated = True
+                break
 
             # Discard state randomly
             if self.dagger_mode:
                 self.discarded += randomly_discard_low_curvature(self.record)
-
-            # Increment self.step
-            self.step += 1
-            if self.step >= self.max_steps:
-                self.terminated = True
-                break
 
         # Store record
         self.seed_reward = int(self.seed_reward)
         self._store_record(seed=seed)
 
         # Finish
-        return seed, self.seed_reward, self.done, self.terminated, self.truncated, np.mean(self.record["off_track"])
+        return SimulationResult(seed=seed, reward=self.seed_reward, done=self.done, terminated=self.terminated, truncated=self.truncated, off_track=np.mean(self.record["off_track"]))
