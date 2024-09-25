@@ -6,9 +6,6 @@ from torch import nn
 
 from src.imitation_driver.network import Prediction
 from src.imitation_driver.training.preprocess import GroundTruth
-from src.utils import conf_utils
-
-conf = conf_utils.get_default_conf()
 
 
 def cos_sim(x, y):
@@ -16,7 +13,8 @@ def cos_sim(x, y):
 
 
 class Loss:
-    def __init__(self):
+    def __init__(self, conf):
+        self.conf = conf
         # Loss history
         self.losses = []
         self.steering_losses = []
@@ -112,15 +110,15 @@ class Loss:
         return self.he_loss
 
     def get_loss(self):
-        self.loss = torch.tensor(conf.IMITATION_STEERING_LOSS).to(conf.DEVICE) * self._steering_loss()
-        self.loss += torch.tensor(conf.IMITATION_ACCELERATION_LOSS).to(conf.DEVICE) * self._acceleration_loss()
-        self.loss += torch.tensor(conf.IMITATION_CHEVRON_SEGMENTATION_LOSS).to(conf.DEVICE) * self._chevron_segmentation_loss()
-        self.loss += torch.tensor(conf.IMITATION_ROAD_SEGMENTATION_LOSS).to(conf.DEVICE) * self._road_segmentation_loss()
-        self.loss += torch.tensor(conf.IMITATION_CURVATURE_LOSS).to(conf.DEVICE) * self._curvature_loss()
-        self.loss += torch.tensor(conf.IMITATION_DESIRED_SPEED_LOSS).to(conf.DEVICE) * self._desired_speed_loss()
-        self.loss += torch.tensor(conf.IMITATION_SPEED_ERROR_LOSS).to(conf.DEVICE) * self._speed_error_loss()
-        self.loss += torch.tensor(conf.IMITATION_CTE_LOSS).to(conf.DEVICE) * self._cte_loss()
-        self.loss += torch.tensor(conf.IMITATION_HE_LOSS).to(conf.DEVICE) * self._he_loss()
+        self.loss = torch.tensor(self.conf.IMITATION_STEERING_LOSS).to(self.conf.DEVICE) * self._steering_loss()
+        self.loss += torch.tensor(self.conf.IMITATION_ACCELERATION_LOSS).to(self.conf.DEVICE) * self._acceleration_loss()
+        self.loss += torch.tensor(self.conf.IMITATION_CHEVRON_SEGMENTATION_LOSS).to(self.conf.DEVICE) * self._chevron_segmentation_loss()
+        self.loss += torch.tensor(self.conf.IMITATION_ROAD_SEGMENTATION_LOSS).to(self.conf.DEVICE) * self._road_segmentation_loss()
+        self.loss += torch.tensor(self.conf.IMITATION_CURVATURE_LOSS).to(self.conf.DEVICE) * self._curvature_loss()
+        self.loss += torch.tensor(self.conf.IMITATION_DESIRED_SPEED_LOSS).to(self.conf.DEVICE) * self._desired_speed_loss()
+        self.loss += torch.tensor(self.conf.IMITATION_SPEED_ERROR_LOSS).to(self.conf.DEVICE) * self._speed_error_loss()
+        self.loss += torch.tensor(self.conf.IMITATION_CTE_LOSS).to(self.conf.DEVICE) * self._cte_loss()
+        self.loss += torch.tensor(self.conf.IMITATION_HE_LOSS).to(self.conf.DEVICE) * self._he_loss()
         self.losses.append(self.loss.item())
 
         return self.loss

@@ -6,10 +6,6 @@ import numpy as np
 import torch
 from torch import nn
 
-from src.utils.conf_utils import get_default_conf
-
-conf = get_default_conf()
-
 
 def model_size(model):
     """
@@ -23,11 +19,12 @@ def model_size(model):
 
 
 class AbstractNet(nn.Module):
-    def __init__(self):
+    def __init__(self, conf):
         """
         Initializes the net class.
         """
         super().__init__()
+        self.conf = conf
 
         # Hooks
         self.activations = {}
@@ -129,45 +126,46 @@ class AbstractNet(nn.Module):
         6. Removes the hooks from the network layers.
         """
         self.eval()
-        self(torch.zeros(1, *conf.OBSERVATION_DIM), torch.zeros(1, conf.STATE_DIM))
+        self(torch.zeros(1, *self.conf.OBSERVATION_DIM), torch.zeros(1, self.conf.IMITATION_STATE_DIM))
         self.hook()
         with torch.no_grad():
-            self(torch.zeros(1, *conf.OBSERVATION_DIM), torch.zeros(1, conf.STATE_DIM))
+            self(torch.zeros(1, *self.conf.OBSERVATION_DIM), torch.zeros(1, self.conf.IMITATION_STATE_DIM))
         if print_shapes:
             self.print_shape()
         self.unhook()
 
 
 class Encoder(AbstractNet):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, conf):
+        super().__init__(conf=conf)
+        self.conf = conf
         self.seq = nn.Sequential(
             nn.Sequential(
-                nn.LazyConv2d(out_channels=conf.IMITATION_NUM_FILTERS_ENCODER // 2, kernel_size=3, stride=1, padding=1),
+                nn.LazyConv2d(out_channels=self.conf.IMITATION_NUM_FILTERS_ENCODER // 2, kernel_size=3, stride=1, padding=1),
                 nn.LazyBatchNorm2d(),
                 nn.LeakyReLU(),
-                nn.Dropout(p=conf.IMITATION_DROPOUT_PROB),
+                nn.Dropout(p=self.conf.IMITATION_DROPOUT_PROB),
                 nn.MaxPool2d(kernel_size=2, stride=2),
             ),
             nn.Sequential(
-                nn.LazyConv2d(out_channels=conf.IMITATION_NUM_FILTERS_ENCODER // 2, kernel_size=3, stride=1, padding=1),
+                nn.LazyConv2d(out_channels=self.conf.IMITATION_NUM_FILTERS_ENCODER // 2, kernel_size=3, stride=1, padding=1),
                 nn.LazyBatchNorm2d(),
                 nn.LeakyReLU(),
-                nn.Dropout(p=conf.IMITATION_DROPOUT_PROB),
+                nn.Dropout(p=self.conf.IMITATION_DROPOUT_PROB),
                 nn.MaxPool2d(kernel_size=2, stride=2),
             ),
             nn.Sequential(
-                nn.LazyConv2d(conf.IMITATION_NUM_FILTERS_ENCODER, kernel_size=3, stride=1, padding=1),
+                nn.LazyConv2d(self.conf.IMITATION_NUM_FILTERS_ENCODER, kernel_size=3, stride=1, padding=1),
                 nn.LazyBatchNorm2d(),
                 nn.LeakyReLU(),
-                nn.Dropout(p=conf.IMITATION_DROPOUT_PROB),
+                nn.Dropout(p=self.conf.IMITATION_DROPOUT_PROB),
                 nn.MaxPool2d(kernel_size=2, stride=2),
             ),
             nn.Sequential(
-                nn.LazyConv2d(out_channels=conf.IMITATION_NUM_FILTERS_ENCODER, kernel_size=3, stride=1, padding=1),
+                nn.LazyConv2d(out_channels=self.conf.IMITATION_NUM_FILTERS_ENCODER, kernel_size=3, stride=1, padding=1),
                 nn.LazyBatchNorm2d(),
                 nn.LeakyReLU(),
-                nn.Dropout(p=conf.IMITATION_DROPOUT_PROB),
+                nn.Dropout(p=self.conf.IMITATION_DROPOUT_PROB),
                 nn.MaxPool2d(kernel_size=2, stride=2),
             ),
         )
@@ -183,11 +181,12 @@ class Encoder(AbstractNet):
 
 
 class Decoder(AbstractNet):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, conf):
+        super().__init__(conf)
+        self.conf = conf
         self.deconv1 = nn.Sequential(
             nn.LazyConvTranspose2d(
-                out_channels=conf.IMITATION_NUM_FILTERS_ENCODER // 2,
+                out_channels=self.conf.IMITATION_NUM_FILTERS_ENCODER // 2,
                 kernel_size=3,
                 stride=2,
                 output_padding=(0, 0),
@@ -195,11 +194,11 @@ class Decoder(AbstractNet):
             ),
             nn.LazyBatchNorm2d(),
             nn.LeakyReLU(),
-            nn.Dropout(p=conf.IMITATION_DROPOUT_PROB),
+            nn.Dropout(p=self.conf.IMITATION_DROPOUT_PROB),
         )
         self.deconv2 = nn.Sequential(
             nn.LazyConvTranspose2d(
-                out_channels=conf.IMITATION_NUM_FILTERS_ENCODER // 2,
+                out_channels=self.conf.IMITATION_NUM_FILTERS_ENCODER // 2,
                 kernel_size=3,
                 stride=2,
                 output_padding=(0, 0),
@@ -207,11 +206,11 @@ class Decoder(AbstractNet):
             ),
             nn.LazyBatchNorm2d(),
             nn.LeakyReLU(),
-            nn.Dropout(p=conf.IMITATION_DROPOUT_PROB),
+            nn.Dropout(p=self.conf.IMITATION_DROPOUT_PROB),
         )
         self.deconv3 = nn.Sequential(
             nn.LazyConvTranspose2d(
-                out_channels=conf.IMITATION_NUM_FILTERS_ENCODER // 4,
+                out_channels=self.conf.IMITATION_NUM_FILTERS_ENCODER // 4,
                 kernel_size=3,
                 stride=2,
                 output_padding=(1, 0),
@@ -219,7 +218,7 @@ class Decoder(AbstractNet):
             ),
             nn.LazyBatchNorm2d(),
             nn.LeakyReLU(),
-            nn.Dropout(p=conf.IMITATION_DROPOUT_PROB),
+            nn.Dropout(p=self.conf.IMITATION_DROPOUT_PROB),
         )
         self.deconv4 = nn.Sequential(
             nn.LazyConvTranspose2d(
@@ -233,7 +232,7 @@ class Decoder(AbstractNet):
         self.seq = nn.Sequential(self.deconv1, self.deconv2, self.deconv3, self.deconv4)
 
     def forward(self, code):
-        code = code.reshape(-1, conf.IMITATION_NUM_FILTERS_ENCODER, 5, 6)  # Hard code the shape
+        code = code.reshape(-1, self.conf.IMITATION_NUM_FILTERS_ENCODER, 5, 6)  # Hard code the shape
         return self.seq(code)
 
     def hook(self):
@@ -244,14 +243,14 @@ class Decoder(AbstractNet):
 
 
 class DenseLayer(AbstractNet):
-    def __init__(self, dims):
-        super().__init__()
+    def __init__(self, dims, conf):
+        super().__init__(conf=conf)
         layers = []
         for i in range(len(dims) - 1):
             layers.append(nn.LazyLinear(dims[i]))
             if i < len(dims) - 2:  # No activation or dropout on the final layer
                 layers.append(nn.LeakyReLU())
-                layers.append(nn.Dropout(p=conf.IMITATION_DROPOUT_PROB))
+                layers.append(nn.Dropout(p=self.conf.IMITATION_DROPOUT_PROB))
         layers.append(nn.LazyLinear(dims[-1]))  # Add the final layer
         self.seq = nn.Sequential(*layers)
 

@@ -6,13 +6,10 @@ import torch
 from src.imitation_driver import network
 from src.imitation_driver.training.loss import Loss
 from src.imitation_driver.training.preprocess import GroundTruth
-from src.utils import conf_utils
-
-conf = conf_utils.get_default_conf()
 
 
 class InferenceEngine:
-    def __init__(self, model: network.AbstractNet, optimizer: torch.optim.Adam = None):  # type: ignore
+    def __init__(self, conf, model: network.AbstractNet, optimizer: torch.optim.Adam = None):  # type: ignore
         """
         Initializes the engine object.
         Args:
@@ -22,12 +19,13 @@ class InferenceEngine:
         # Initialize the engine
         self.model = model
         self.optimizer = optimizer
-        self.loss_function = Loss()
+        self.loss_function = Loss(conf=conf)
 
         # Grad flow
         self.gradients = dict()
         self.activations = dict()
         self.weights = dict()
+        self.conf = conf
 
     # Function to train model
     def forward(self, data_loader):
@@ -43,7 +41,7 @@ class InferenceEngine:
         # Initialize losses history
         for batch in data_loader:
             # Move batch to device
-            self.loss_function.gt = GroundTruth(*[t.to(conf.DEVICE, non_blocking=True) for t in batch])
+            self.loss_function.gt = GroundTruth(*[t.to(self.conf.DEVICE, non_blocking=True) for t in batch])
 
             # Reset gradients
             if self.optimizer:

@@ -7,27 +7,26 @@ import torch.nn.functional as F
 from torch import nn
 
 from src.imitation_driver.network import AbstractNet, Encoder, DenseLayer, Decoder, Prediction, model_size
-from src.utils.conf_utils import get_default_conf
-
-conf = get_default_conf()
 
 
 class MultiTaskCNN(AbstractNet):
-    def __init__(self, print_shapes=False, store_debug_states=False):
-        super().__init__()
+    def __init__(self, conf, print_shapes=False, store_debug_states=False):
+        super().__init__(conf=conf)
+        self.conf = conf
+
         # Backbone
-        self.backbone = Encoder()
+        self.backbone = Encoder(conf=conf)
 
         # Auxiliary tasks
-        self.mask_decoder = Decoder()
-        self.curvature_predictor = DenseLayer(conf.IMITATION_CURVATURE_DIMS)
-        self.desired_speed_preditor = DenseLayer(conf.IMITATION_DESIRED_SPEED_DIMS)
-        self.cte_predictor = DenseLayer(conf.IMITATION_CTE_DIMS)
-        self.he_predictor = DenseLayer(conf.IMITATION_HE_DIMS)
+        self.mask_decoder = Decoder(conf=conf)
+        self.curvature_predictor = DenseLayer(conf=conf, dims=conf.IMITATION_CURVATURE_DIMS)
+        self.desired_speed_preditor = DenseLayer(conf=conf, dims=conf.IMITATION_DESIRED_SPEED_DIMS)
+        self.cte_predictor = DenseLayer(conf=conf, dims=conf.IMITATION_CTE_DIMS)
+        self.he_predictor = DenseLayer(conf=conf, dims=conf.IMITATION_HE_DIMS)
 
         # Control tasks
-        self.steering_predictor = DenseLayer(conf.IMITATION_STEERING_DIMS)
-        self.acceleration_predictor = DenseLayer(conf.IMITATION_ACCELERATION_DIMS)
+        self.steering_predictor = DenseLayer(conf=conf, dims=conf.IMITATION_STEERING_DIMS)
+        self.acceleration_predictor = DenseLayer(conf=conf, dims=conf.IMITATION_ACCELERATION_DIMS)
 
         # Sequential model (almost)
         self.seq = nn.Sequential(
@@ -58,8 +57,8 @@ class MultiTaskCNN(AbstractNet):
 
         # Masks
         mask = self.mask_decoder(code)
-        predicted_chevron_mask = mask[:, 0, ...].reshape(-1, *conf.MASK_DIM)
-        predicted_road_mask = mask[:, 1, ...].reshape(-1, *conf.MASK_DIM)
+        predicted_chevron_mask = mask[:, 0, ...].reshape(-1, *self.conf.MASK_DIM)
+        predicted_road_mask = mask[:, 1, ...].reshape(-1, *self.conf.MASK_DIM)
         if self.store_debug_states:
             self.debug_states["road_mask_prediction"].append(predicted_road_mask.detach().cpu().numpy())
             self.debug_states["chevron_mask_prediction"].append(predicted_chevron_mask.detach().cpu().numpy())
@@ -154,11 +153,3 @@ class MultiTaskCNN(AbstractNet):
                 module.print_shape()
                 print(sep)
         print("Total model size: ", model_size(self))
-
-
-def main():
-    MultiTaskCNN(print_shapes=True)
-
-
-if __name__ == "__main__":
-    main()

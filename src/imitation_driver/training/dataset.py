@@ -7,13 +7,9 @@ import torch
 from torch.utils.data import Dataset
 
 from src.imitation_driver.training.preprocess import GroundTruth, preprocess_input_training, preprocess_sequences_training
-from src.utils import conf_utils
-
-conf = conf_utils.get_default_conf()
-
 
 class SequenceDataset(Dataset):
-    def __init__(self, data_dir: str, read_all_sequences=False) -> None:
+    def __init__(self, data_dir: str, conf, read_all_sequences=False) -> None:
         """
         Initializes the dataset object.
         Args:
@@ -28,6 +24,7 @@ class SequenceDataset(Dataset):
         self.record_files = []
         self.read_all_sequences = read_all_sequences
         self._update_data_dir()
+        self.conf = conf
 
     def _read_record_files_names(self) -> list[str]:
         """
@@ -66,7 +63,7 @@ class SequenceDataset(Dataset):
             seeds (list): List of seeds extracted from the selected record file names.
         """
         sorted_record_files = self._read_record_files_names()
-        self.record_files = preprocess_sequences_training(sorted_record_files, self.read_all_sequences)
+        self.record_files = preprocess_sequences_training(sorted_record_files, self.read_all_sequences, conf=self.conf)
         self.seeds = [int(os.path.basename(record_file).split("_")[0]) for record_file in self.record_files]
 
     def __len__(self):
@@ -76,7 +73,7 @@ class SequenceDataset(Dataset):
         record_path = self.record_files[idx]
         if os.path.islink(record_path):
             record_path = os.readlink(record_path)
-        return preprocess_input_training(record=np.load(record_path))
+        return preprocess_input_training(record=np.load(record_path), conf=self.conf)
 
 
 def sequence_collate_fn(batch: list[GroundTruth]) -> GroundTruth:
@@ -102,9 +99,3 @@ class StateDataset(Dataset):
 
     def __getitem__(self, idx) -> GroundTruth:
         return GroundTruth(*[d[idx] for d in self.data])
-
-
-if __name__ == "__main__":
-    SequenceDataset(
-        data_dir="/graphics/scratch2/students/nguyenlo/CarRace/CarRaceOutputs/dagger_data/2024_09_23_cgpool1905_23_34_06"
-    )

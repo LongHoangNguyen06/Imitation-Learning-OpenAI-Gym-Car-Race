@@ -87,7 +87,7 @@ def get_controller(controller: str, conf, *_, **kwargs) -> AbstractController:
         return StanleyController(conf=conf)
     if controller == "imitation":
         assert "model_path" in kwargs, "Model path must be provided for imitation controller."
-        return ImitationDriverController(weights=kwargs["model_path"], store_debug_states=True)
+        return ImitationDriverController(conf=conf, weights=kwargs["model_path"], store_debug_states=True)
     raise ValueError(f"Invalid controller: {controller}")
 
 
@@ -113,9 +113,10 @@ def run(argv):
 
     # Simulation
     data, reward = Simulator(
+        conf=conf,
         output_dir=dataset_path,
         max_steps=args.max_iterations,
-        student_controller=get_controller(args.student_controller, conf, model_path=args.student_model_path),
+        student_controller=get_controller(args.student_controller, conf=conf, model_path=args.student_model_path),
         teacher_controller=(
             get_controller(args.teacher_controller, conf_utils.get_conf(args.teacher_controller))
             if args.teacher_controller is not None

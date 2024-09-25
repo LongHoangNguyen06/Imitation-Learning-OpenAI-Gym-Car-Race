@@ -6,9 +6,6 @@ import torch
 from torch import nn
 
 from src.imitation_driver.network import AbstractNet, Prediction
-from src.utils.conf_utils import get_default_conf
-
-conf = get_default_conf()
 
 
 def init_weight(m):
@@ -22,41 +19,53 @@ def init_weight(m):
 
 
 class SingleTaskCNN(AbstractNet):
-    def __init__(self, print_shapes=False, store_debug_states=False):
-        super().__init__()
-        # Network architecture
-        super().__init__()
+    def __init__(self, conf, print_shapes=False, store_debug_states=False):
+        super().__init__(conf=conf)
+        self.conf = conf
+        # Features extraction
         self.conv = nn.Sequential(
             nn.Sequential(
-                nn.LazyConv2d(32, kernel_size=3, stride=1, padding=1),
+                nn.LazyConv2d(conf.IMITATION_NUM_FILTERS_ENCODER // 2, kernel_size=3, stride=1, padding=1),
                 nn.LazyBatchNorm2d(),
                 nn.LeakyReLU(),
                 nn.MaxPool2d(kernel_size=2, stride=2),
             ),
             nn.Sequential(
-                nn.LazyConv2d(32, kernel_size=3, stride=1, padding=1),
+                nn.LazyConv2d(conf.IMITATION_NUM_FILTERS_ENCODER // 2, kernel_size=3, stride=1, padding=1),
                 nn.LazyBatchNorm2d(),
                 nn.LeakyReLU(),
                 nn.MaxPool2d(kernel_size=2, stride=2),
             ),
             nn.Sequential(
-                nn.LazyConv2d(64, kernel_size=3, stride=1, padding=1),
+                nn.LazyConv2d(conf.IMITATION_NUM_FILTERS_ENCODER, kernel_size=3, stride=1, padding=1),
                 nn.LazyBatchNorm2d(),
                 nn.LeakyReLU(),
                 nn.MaxPool2d(kernel_size=2, stride=2),
             ),
             nn.Sequential(
-                nn.LazyConv2d(64, kernel_size=3, stride=1, padding=1),
+                nn.LazyConv2d(conf.IMITATION_NUM_FILTERS_ENCODER, kernel_size=3, stride=1, padding=1),
                 nn.LazyBatchNorm2d(),
                 nn.LeakyReLU(),
                 nn.MaxPool2d(kernel_size=2, stride=2),
             ),
         )
-        self.fc = nn.Sequential(
-            nn.Sequential(nn.LazyLinear(64), nn.LeakyReLU(), nn.Dropout(p=conf.IMITATION_DROPOUT_PROB)),
-            nn.Sequential(nn.LazyLinear(32), nn.LeakyReLU(), nn.Dropout(p=conf.IMITATION_DROPOUT_PROB)),
-            nn.Sequential(nn.LazyLinear(2), nn.Softsign()),
-        )
+
+        # Dense head
+        fc = []
+        for i in range(conf.IMITATION_FC_NUM_LAYERS):
+            fc.append(
+                nn.Sequential(
+                    nn.LazyLinear(
+                        out_features=conf.IMITATION_FC_INITIAL_LAYER_SIZE // (i + 1),
+                    ),
+                    nn.LeakyReLU(),
+                    nn.Dropout(p=conf.IMITATION_DROPOUT_PROB),
+                )
+            )
+        fc.append(nn.Sequential(nn.LazyLinear(2), nn.Softsign()))
+
+        # Concatenate everything together
+        self.fc = nn.Sequential(*fc)
         self.seq = nn.Sequential(self.conv, self.fc)
         self.debug_states = defaultdict(list)
         self.store_debug_states = store_debug_states
@@ -97,8 +106,8 @@ class SingleTaskCNN(AbstractNet):
             self.debug_states["acceleration_prediction"].append(acceleration.detach().cpu().numpy())
 
         return Prediction(
-            road_mask=torch.zeros((batch_size, *conf.MASK_DIM), device=observation.device),
-            chevron_mask=torch.zeros((batch_size, *conf.MASK_DIM), device=observation.device),
+            road_mask=torch.zeros((batch_size, *self.conf.MASK_DIM), device=observation.device),
+            chevron_mask=torch.zeros((batch_size, *self.conf.MASK_DIM), device=observation.device),
             curvature=torch.zeros(batch_size, 1, device=observation.device),
             steering=steering,
             acceleration=acceleration,

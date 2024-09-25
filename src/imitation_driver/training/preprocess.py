@@ -6,9 +6,7 @@ import random
 import numpy as np
 import torch
 
-from src.utils import conf_utils, utils
-
-conf = conf_utils.get_default_conf()
+from src.utils import utils
 
 
 def convert_action_gym_to_models(action: np.ndarray) -> np.ndarray:
@@ -47,7 +45,7 @@ def convert_action_models_to_gym(steering: torch.Tensor, acceleration: torch.Ten
     return controls
 
 
-def extract_masks(image: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+def extract_masks(image: np.ndarray, conf) -> tuple[np.ndarray, np.ndarray]:
     """
     Extracts observation features from an image.
     Parameters:
@@ -74,7 +72,7 @@ def extract_masks(image: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     return chevron_masks, road_masks
 
 
-def preprocess_obs(observation: np.ndarray) -> np.ndarray:
+def preprocess_obs(observation: np.ndarray, conf) -> np.ndarray:
     """
     Preprocesses the observation.
     """
@@ -126,7 +124,7 @@ def extract_noisy_sensor_values(npy_observation) -> np.ndarray:
     return torch.cat((speed, abs_sensors, abs_sennsor_std, gyroscope, steering), dim=1).numpy()
 
 
-def preprocess_input_testing(observation):
+def preprocess_input_testing(observation, conf):
     """
     Preprocesses the input data for a race car model.
     Args:
@@ -136,7 +134,7 @@ def preprocess_input_testing(observation):
     """
     state = extract_noisy_sensor_values(observation)
 
-    observation = preprocess_obs(observation)
+    observation = preprocess_obs(observation, conf)
 
     return observation, state
 
@@ -152,7 +150,7 @@ def create_balance_weights(labels, unique_classes, class_weights):
     return weights.reshape(labels.shape)
 
 
-def preprocess_sequences_training(sorted_record_files, read_all_sequences):
+def preprocess_sequences_training(sorted_record_files, read_all_sequences, conf):
     """
     Preprocesses the training sequences by selecting a subset of record files.
     If `read_all_sequences` is False, the function selects a combination of the most recent
@@ -194,7 +192,7 @@ GroundTruth = namedtuple(
 )
 
 
-def preprocess_input_training(record):
+def preprocess_input_training(record, conf):
     """
     Preprocesses the input data for a race car model.
     Args:
@@ -205,7 +203,9 @@ def preprocess_input_training(record):
     """
     # Choose only a subset of the data
     random_indices = np.random.choice(
-        record["observation"].shape[0], record["observation"].shape[0] // conf.DATASET_SAMPLING_RATE, replace=False
+        record["observation"].shape[0],
+        record["observation"].shape[0] // conf.IMITATION_DATASET_SAMPLING_RATE,
+        replace=False,
     )
 
     observation=record["observation"][random_indices]
@@ -223,7 +223,7 @@ def preprocess_input_training(record):
     cte /= 10.0
 
     # Extract masks and pixel wise weights
-    chevron_mask, road_mask = extract_masks(observation)
+    chevron_mask, road_mask = extract_masks(observation, conf)
     chevron_mask_weight = create_balance_weights(
         chevron_mask.flatten(), unique_classes=[0, 1], class_weights=conf.CHEVRON_WEIGHT
     ).reshape(chevron_mask.shape)
@@ -234,7 +234,7 @@ def preprocess_input_training(record):
     # Extract steering and acceleration
     steering, acceleration = convert_action_gym_to_models(action)
     # Preprocess inputs
-    observation, state = preprocess_input_testing(observation)
+    observation, state = preprocess_input_testing(observation, conf)
 
     return GroundTruth(
         observation=torch.from_numpy(observation).double(),

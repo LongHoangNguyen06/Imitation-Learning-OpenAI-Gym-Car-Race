@@ -10,10 +10,7 @@ import torch
 import torch.nn.functional as F
 
 import wandb
-from src.utils.conf_utils import get_default_conf
 from src.utils.simulator import teacher_action_probability
-
-conf = get_default_conf()
 
 
 def fig_to_img(fig):
@@ -70,7 +67,7 @@ def scatter_plot(gt, predicted, name):
     return fig_to_img(fig)
 
 
-def get_code_artifact_dir():
+def get_code_artifact_dir(conf):
     """
     Returns the directory path for storing code artifacts based on the current hostname.
     :return: The directory path for code artifacts.
@@ -79,7 +76,7 @@ def get_code_artifact_dir():
     return os.path.join(conf.OUTPUT_DIR, socket.gethostname())
 
 
-def plot_rgb(rgb):
+def plot_rgb(rgb, conf):
     """
     Plots an RGB image.
     Args:
@@ -114,8 +111,9 @@ def plot_masks(masks):
 
 
 class WandbLogger:
-    def __init__(self, model, run_id) -> None:
-        if conf.WANDB_LOG:
+    def __init__(self, model, run_id, conf) -> None:
+        self.conf = conf
+        if conf.IMITATION_WANDB_LOG:
             # Store commit and branch
             wandb_conf = conf.copy()
             if "GIT_COMMIT_HASH" in os.environ:
@@ -125,10 +123,10 @@ class WandbLogger:
             if "GIT_COMMIT_MESSAGE" in os.environ:
                 wandb_conf["GIT_COMMIT_MESSAGE"] = os.environ["GIT_COMMIT_MESSAGE"]
             wandb.init(project="CarRace", name=f"{run_id}", config=wandb_conf)
-            if os.path.exists(get_code_artifact_dir()):
+            if os.path.exists(get_code_artifact_dir(conf)):
                 # Add the code artifact to wandb
                 artifact = wandb.Artifact(f"{run_id}_code_artifact", type="code")
-                artifact.add_dir(get_code_artifact_dir())
+                artifact.add_dir(get_code_artifact_dir(conf))
                 wandb.log_artifact(artifact)
 
         self.model = model
@@ -152,7 +150,7 @@ class WandbLogger:
         """
         wandb.log({"dagger/rewards": wandb.Histogram(list(simulator.rewards))}, step=epoch)
         wandb.log({"dagger/reward": simulator.reward}, step=epoch)
-        wandb.log({"dagger/teacher_action_proboability": teacher_action_probability(epoch)}, step=epoch)
+        wandb.log({"dagger/teacher_action_proboability": teacher_action_probability(epoch, conf=self.conf)}, step=epoch)
         wandb.log({"dagger/#records": len(os.listdir(simulator.output_dir))}, step=epoch)
         wandb.log({"dagger/off_track": wandb.Histogram(simulator.off_track)}, step=epoch)
         wandb.log({"dagger/off_track_mean": np.mean(simulator.off_track)}, step=epoch)
@@ -331,7 +329,7 @@ class WandbLogger:
         - Predicted chevron masks.
         - Scatter plots for steering, acceleration, curvature, desired speed, speed error, cross track error (cte), and heading error (he).
         """
-        wandb.log({f"viz_{dataset_name}/inputs": plot_rgb(loss_function.gt.observation)}, epoch)
+        wandb.log({f"viz_{dataset_name}/inputs": plot_rgb(loss_function.gt.observation, conf=self.conf)}, epoch)
         wandb.log({f"viz_{dataset_name}/predicted_road_masks": plot_masks(loss_function.pred.road_mask)}, epoch)
         wandb.log(
             {f"viz_{dataset_name}/predicted_chevron_masks": plot_masks(loss_function.pred.chevron_mask)},
@@ -442,7 +440,7 @@ class WandbLogger:
             dataset_name = "train"
         else:
             dataset_name = "test"
-        if not conf.WANDB_LOG:
+        if not self.conf.IMITATION_WANDB_LOG:
             return
         self._log_losses(dataset_name, loss_function, epoch)
         self._log_predictions(dataset_name, loss_function, epoch)
@@ -463,7 +461,7 @@ class WandbLogger:
         if validate_reward > self.best_validate_reward:
             self.best_validate_reward = validate_reward
             self._upload_model(epoch, validate_reward)
-        elif validate_reward >= conf.MIN_THRESHOLD_UPLOAD:
+        elif validate_reward >= self.conf.IMITATION_MIN_THRESHOLD_UPLOAD:
             self._upload_model(epoch, validate_reward)
         wandb.log({"best_validate_reward": self.best_validate_reward}, step=epoch)
 
@@ -478,7 +476,7 @@ class WandbLogger:
         """
         model_save_file = self.model_save_file_prefix + f"{epoch}_{int(validate_reward)}.pth"
         torch.save(self.model.state_dict(), model_save_file)  # Save model to local disk
-        if conf.WANDB_LOG:  # Save model to wandb
+        if self.conf.IMITATION_WANDB_LOG:  # Save model to wandb
             print(f"Best model saved at epoch {epoch + 1} with validate reward: {validate_reward:.2f}")
             artifact_name = f"{self.model_name}_{epoch}_{int(validate_reward)}"
             wandb_model_artifact = wandb.Artifact(

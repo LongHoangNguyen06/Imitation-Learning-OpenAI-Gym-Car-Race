@@ -9,7 +9,7 @@ from tqdm.contrib.concurrent import process_map
 
 from src.expert_drivers.abstract_classes.abstract_controller import AbstractController
 from src.imitation_driver.imitation_driver_controller import ImitationDriverController
-from src.utils import conf_utils, utils
+from src.utils import utils
 from src.utils.env_utils import (
     create_env,
     extract_track,
@@ -22,17 +22,15 @@ from src.utils.env_utils import (
     is_car_off_track,
 )
 
-conf = conf_utils.get_default_conf()
 
-
-def teacher_action_probability(epoch: int):
+def teacher_action_probability(epoch: int, conf):
     """
-    Returns the probability of the teacher self.action being chosen.
+    Returns the probability of the teacher action being chosen.
     The probability is calculated as p^i, where p is the value of IMITATION_P and i is the epoch number.
     Parameters:
     - epoch (int): The current epoch number.
     Returns:
-    - float: The probability of the teacher self.action being chosen.
+    - float: The probability of the teacher action being chosen.
     """
     p = conf.IMITATION_P_DECAY**epoch
     if p < conf.IMITATION_TEACHER_P_CUT_OFF:
@@ -40,7 +38,7 @@ def teacher_action_probability(epoch: int):
     return p
 
 
-def choose_action(student_action, teacher_action, epoch):
+def choose_action(student_action, teacher_action, epoch, conf):
     """
     Choose an action based on the probability determined by the current epoch.
     Parameters:
@@ -50,12 +48,12 @@ def choose_action(student_action, teacher_action, epoch):
     Returns:
     any: The chosen action, either from the student or the teacher based on the probability.
     """
-    if np.random.random() < teacher_action_probability(epoch=epoch):
+    if np.random.random() < teacher_action_probability(epoch=epoch, conf=conf):
         return teacher_action
     return student_action
 
 
-def randomly_discard_low_curvature(record: dict):
+def randomly_discard_low_curvature(record: dict, conf):
     """
     Randomly discards the last element of each key in the record if the curvature
     of the last element is below a specified minimum threshold and a random probability
@@ -77,18 +75,20 @@ def randomly_discard_low_curvature(record: dict):
         return 1
     return 0
 
+
 SimulationResult = namedtuple("SimulationResult", ["seed", "reward", "done", "terminated", "truncated", "off_track"])
+
 
 class Simulator:
     def __init__(
         self,
+        conf,
         output_dir: str,
         max_steps: int,
         student_controller: AbstractController,
         teacher_controller: AbstractController | None = None,
         dagger_mode: bool = False,
-        start_seed_counter: int = conf.IMITATION_TRAINING_START_SEED,
-        do_early_break: bool = True
+        do_early_break: bool = True,
     ) -> None:
         """
         Initializes the simulator with the given parameters.
@@ -99,10 +99,10 @@ class Simulator:
             teacher_controller (AbstractController | None, optional): The controller used by the teacher.
                 Defaults to None. If None and dagger_mode is True, a ValueError is raised.
             dagger_mode (bool, optional): If True, the simulator operates in DAgger mode. Defaults to False.
-            start_seed_counter (int, optional): The starting value for the seed counter. Defaults to conf.IMITATION_TRAINING_START_SEED.
         Raises:
             ValueError: If dagger_mode is True and teacher_controller is None.
         """
+        self.conf = conf
         if dagger_mode and teacher_controller is None:
             raise ValueError("Teacher controller must be provided in DAgger mode.")
         self.output_dir = output_dir
@@ -111,8 +111,8 @@ class Simulator:
         self.teacher_controller = teacher_controller if teacher_controller is not None else student_controller
         self.dagger_mode = dagger_mode
         self.epoch = -1
-        self.counter = start_seed_counter
-        self.do_early_breaking = do_early_break
+        self.counter = self.conf.IMITATION_DAGGER_VALIDATION_START_SEED
+        self.do_early_break = do_early_break
 
     def _get_seeds(self):
         """
@@ -127,12 +127,12 @@ class Simulator:
         # At the beginning, the model is bad so we don't even want to waste resource on evaluation.
         # Also the teacher was also driving so we don't want the bias.
         if self.dagger_mode:
-            n_seeds = conf.DAGGER_BEGINNING_ITERATION_PER_LOOP
-            if teacher_action_probability(self.epoch) == 0:
-                n_seeds = conf.DAGGER_END_ITERATION_PER_LOOP
+            n_seeds = self.conf.IMITATION_DAGGER_BEGINNING_ITERATION_PER_LOOP
+            if teacher_action_probability(self.epoch, conf=self.conf) == 0:
+                n_seeds = self.conf.IMITATION_DAGGER_END_ITERATION_PER_LOOP
             self.counter += n_seeds
             return list(range(self.counter, self.counter + n_seeds))
-        return conf.RECORD_SEEDS
+        return self.conf.RECORD_SEEDS
 
     def simulate(self, epoch: int):
         """
@@ -150,7 +150,7 @@ class Simulator:
 
         # Simulate and return the average reward
         results = process_map(
-            self._simulate_one_seed, self._get_seeds(), max_workers=conf.GYM_MAX_WORKERS, desc=f"Simulation Loop"
+            self._simulate_one_seed, self._get_seeds(), max_workers=self.conf.GYM_MAX_WORKERS, desc=f"Simulation Loop"
         )
         self.rewards = [result.reward for result in results]
         self.off_track = [result.off_track for result in results]
@@ -159,13 +159,13 @@ class Simulator:
 
     def _get_action(self, controller, info):
         """
-        Get the self.action from the controller.
+        Get the action from the controller.
         Args:
-            controller (AbstractController): The controller to get the self.action from.
+            controller (AbstractController): The controller to get the action from.
             observation (np.ndarray): The observation from the environment.
             info (dict): The information from the environment.
         Returns:
-            np.ndarray: The self.action to take in the environment.
+            np.ndarray: The action to take in the environment.
         """
         if isinstance(controller, ImitationDriverController):
             self.student_controller.model.eval()  # type: ignore
@@ -207,7 +207,7 @@ class Simulator:
         Returns:
             None
         """
-        self.record["reward"].append(self.reward)
+        self.record["reward"].append(self.step_reward)
         self.record["realised_action"].append(self.realised_action)
         self.record["student_action"].append(self.student_action)
         self.record["teacher_action"].append(self.teacher_action)
@@ -232,9 +232,9 @@ class Simulator:
         """
         do_store_record = not self.dagger_mode
         if self.dagger_mode:
-            if self.epoch < conf.IMITATION_STORE_ALL_RECORDS_EPOCH:
+            if self.epoch < self.conf.IMITATION_STORE_ALL_RECORDS_EPOCH:
                 do_store_record = True
-            elif self.seed_reward < conf.IMITATION_STORE_REWARD_THRESHOLD:
+            elif self.seed_reward < self.conf.IMITATION_STORE_REWARD_THRESHOLD:
                 do_store_record = True
 
         if do_store_record:
@@ -263,10 +263,10 @@ class Simulator:
             The chosen action.
         """
         if self.dagger_mode:
-            self.action = choose_action(student_action=self.student_action, teacher_action=self.teacher_action, epoch=self.epoch)  # type: ignore
+            self.realised_action = choose_action(student_action=self.student_action, teacher_action=self.teacher_action, epoch=self.epoch)  # type: ignore
         else:
-            self.action = self.student_action  # type: ignore
-        return self.action
+            self.realised_action = self.student_action  # type: ignore
+        return self.realised_action
 
     def _do_early_breaking(self) -> bool:
         """
@@ -280,12 +280,12 @@ class Simulator:
         if not self._do_early_breaking:
             return False
 
-        if self.steps_without_rewards >= conf.IMITATION_EARLY_BREAK_NO_REWARD_STEPS:
+        if self.steps_without_rewards >= self.conf.IMITATION_EARLY_BREAK_NO_REWARD_STEPS:
             return True
 
         if (
-            np.abs(self.record["cte"][-1]) >= conf.IMITATION_EARLY_BREAK_MAX_CTE
-            and np.abs(self.record["he"][-1]) >= conf.IMITATION_EARLY_BREAK_MAX_HE
+            np.abs(self.record["cte"][-1]) >= self.conf.IMITATION_EARLY_BREAK_MAX_CTE
+            and np.abs(self.record["he"][-1]) >= self.conf.IMITATION_EARLY_BREAK_MAX_HE
         ):
             return True
 
@@ -299,7 +299,7 @@ class Simulator:
         """
         utils.set_deterministic(seed=seed)
 
-        self.env = create_env(conf=conf)
+        self.env = create_env(conf=self.conf)
 
         # Set up record
         self.record = defaultdict(list)
@@ -324,11 +324,11 @@ class Simulator:
             self.realised_action = self._choose_action()
 
             # Simulate
-            next_observation, self.reward, self.terminated, self.truncated, info = self.env.step(self.action)
+            next_observation, self.step_reward, self.terminated, self.truncated, info = self.env.step(self.realised_action)
             self._record_post_simulation()
             self.observation = next_observation
-            self.seed_reward += self.reward  # type: ignore
-            if self.reward <= 0.0:  # type: ignore
+            self.seed_reward += self.step_reward  # type: ignore
+            if self.step_reward <= 0.0:  # type: ignore
                 self.steps_without_rewards += 1
             else:
                 self.steps_without_rewards = 0
@@ -341,11 +341,18 @@ class Simulator:
 
             # Discard state randomly
             if self.dagger_mode:
-                self.discarded += randomly_discard_low_curvature(self.record)
+                self.discarded += randomly_discard_low_curvature(self.record, conf=self.conf)
 
         # Store record
         self.seed_reward = int(self.seed_reward)
         self._store_record(seed=seed)
 
         # Finish
-        return SimulationResult(seed=seed, reward=self.seed_reward, done=self.done, terminated=self.terminated, truncated=self.truncated, off_track=np.mean(self.record["off_track"]))
+        return SimulationResult(
+            seed=seed,
+            reward=self.seed_reward,
+            done=self.done,
+            terminated=self.terminated,
+            truncated=self.truncated,
+            off_track=np.mean(self.record["off_track"]),
+        )
